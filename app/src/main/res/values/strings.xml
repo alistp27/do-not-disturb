@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Do Not Disturb</string>
+    <string name="app_name">Tabligh-gir</string>
 
     <!-- Tabs and common -->
     <string name="tab_messages">Messages</string>
-    <string name="tab_filtered">Filtered</string>
+    <string name="tab_filtered">Ads</string>
     <string name="tab_calls">Calls</string>
     <string name="tab_apps">Apps</string>
     <string name="tab_settings">Settings</string>
@@ -53,10 +53,10 @@
     <string name="delete_needs_default">Make this your default SMS app to delete conversations.</string>
 
     <!-- Filtered -->
-    <string name="filtered_count">%1$d filtered</string>
+    <string name="filtered_count">%1$d ads caught</string>
     <string name="delete_all">Delete all</string>
-    <string name="nothing_filtered">Nothing filtered yet</string>
-    <string name="not_spam">Not spam</string>
+    <string name="nothing_filtered">No ads caught yet</string>
+    <string name="not_spam">Not an ad</string>
     <string name="spam">Spam</string>
     <string name="block_sender">Block sender</string>
     <string name="verdict_spam">Spam</string>
@@ -94,7 +94,7 @@
     <string name="reset_title">Reset learning?</string>
     <string name="reset_body">It forgets everything you taught it. Your messages and block lists are kept.</string>
     <string name="reset">Reset</string>
-    <string name="settings_footer">SMS and MMS from contacts, OTP codes and bank messages go to Messages. Ads and unknown senders go to Filtered, where nothing is lost.</string>
+    <string name="settings_footer">Messages from contacts, OTP codes and bank messages are never touched. This app has no internet access, so nothing ever leaves your phone.</string>
     <string name="appearance">Appearance</string>
     <string name="language">Language</string>
     <string name="lang_system">Phone default</string>
@@ -122,7 +122,7 @@
 
     <!-- Notifications -->
     <string name="channel_messages">Messages</string>
-    <string name="channel_filtered">Filtered messages</string>
+    <string name="channel_filtered">Caught ads</string>
     <string name="notif_filtered_title">%1$d messages filtered</string>
     <string name="notif_filtered_text">Tap to review them</string>
 
@@ -130,14 +130,26 @@
     <string name="onb_next">Next</string>
     <string name="onb_skip">Skip</string>
     <string name="onb_start">Start</string>
-    <string name="onb_welcome_title">Welcome to Do Not Disturb</string>
-    <string name="onb_welcome_body">Block ad calls, filter spam SMS and hide app promotions, without missing OTP codes or bank messages. Everything happens on your phone.</string>
-    <string name="onb_sms_title">Filter spam SMS</string>
-    <string name="onb_sms_body">Make this app your default SMS app. Messages from contacts, OTP codes and bank SMS always reach you. Ads and unknown senders go to Filtered, where you can review them.</string>
+    <string name="onb_welcome_title">Welcome to Tabligh-gir</string>
+    <string name="onb_welcome_body">Block ad calls and silence ad SMS without changing your phone or SMS app. OTP codes, bank messages and contacts always get through. The app has no internet access.</string>
+    <string name="onb_sms_title">Silence ad SMS</string>
+    <string name="onb_sms_body">Allow notification access. When your SMS app shows an ad, Tabligh-gir removes the notification quietly. The message stays in your SMS app, but it won\'t disturb you. You can also hide ads from other apps in the Apps tab.</string>
     <string name="onb_call_title">Block ad calls</string>
-    <string name="onb_call_body">Allow call screening to reject calls from 0940, 0941 and 0942 before your phone rings. Your contacts are never blocked.</string>
+    <string name="onb_call_body">Allow call screening to reject calls from 0940, 0941 and 0942 before your phone rings. Your phone app stays the same, and your contacts are never blocked.</string>
     <string name="onb_notif_title">Hide app promotions</string>
     <string name="onb_notif_body">Optional. Allow notification access, then choose apps in the Apps tab whose ads should be hidden.</string>
     <string name="onb_done_title">You\'re all set</string>
-    <string name="onb_done_body">You can change any of this later in Settings.</string>
+    <string name="onb_done_body">Want ads gone from your inbox too? Turn on Full mode in Settings.</string>
+    <string name="gate_note">These ads are still in your SMS app; their notifications were silenced.</string>
+    <string name="notif_access">Notification access (silences ad SMS)</string>
+    <string name="full_mode">Full mode</string>
+    <string name="full_mode_body">Make Tabligh-gir your SMS app so ads never reach your inbox. You\'ll read and send messages here instead.</string>
+    <string name="full_mode_on">Full mode is on. Ads go to the Ads tab instead of your inbox.</string>
+    <string name="turn_on">Turn on</string>
+    <string name="turn_off">Turn off</string>
+    <string name="support">Support us</string>
+    <string name="support_body">Tabligh-gir is free, has no ads and no internet access. If it helps you, you can support its development.</string>
+    <string name="donate">Support on Hamibash</string>
+    <string name="privacy_note">No internet permission: this app cannot send anything anywhere.</string>
+    <string name="listener_label">Tabligh-gir ad blocker</string>
 </resources>

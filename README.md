@@ -1,6 +1,24 @@
-# Do Not Disturb — Iran spam SMS & call blocker
+# تبلیغ‌گیر · Tabligh-gir
 
-An Android app (Android 10+) that blocks the advertising calls and SMS that flood Iranian phone numbers, without losing OTP codes or bank messages.
+**Blocks ad calls and silences ad SMS for Iranian phone numbers, without replacing your phone or SMS app, and without internet access.**
+
+- ✅ Ad calls from `0940`, `0941`, `0942` are rejected before your phone rings.
+- ✅ Ad SMS notifications are removed silently; OTP codes, bank messages and contacts always get through.
+- ✅ Promotional notifications from apps you pick are hidden.
+- 🔒 **No internet permission.** CI fails the build if one is ever added. See [PRIVACY.md](PRIVACY.md).
+- ❤️ Free, no ads. Support it on [Hamibash](https://hamibash.com/tablighgir).
+
+Download the latest APK from [Releases](https://github.com/alistp27/do-not-disturb/releases/latest). Android 10+.
+
+## Two modes
+
+| | Gatekeeper (default) | Full mode (optional) |
+|---|---|---|
+| Your SMS app | Stays the same | Tabligh-gir becomes your SMS app |
+| Ad SMS | Notification removed silently; message stays in your SMS app | Never reaches the inbox; kept in the **Ads** tab |
+| Permissions | Call screening, notification access, contacts | + SMS |
+
+Gatekeeper only acts on messages it is sure are ads (rules 3, 4, 7 and 8 below). Anything uncertain is left alone.
 
 ## How it works
 
@@ -10,7 +28,7 @@ An Android app (Android 10+) that blocks the advertising calls and SMS that floo
 - Optional: block hidden numbers, or every number not in your contacts.
 - Every blocked call is shown in the **Calls** tab.
 
-**SMS** (the app becomes your default SMS app — Android only lets the default SMS app stop messages)
+**SMS**
 
 Each incoming message is checked in this order; the first match wins:
 
@@ -18,22 +36,22 @@ Each incoming message is checked in this order; the first match wins:
 |---|------|--------|
 | 1 | Sender is in contacts | Inbox |
 | 2 | Sender is on your "Not spam" list | Inbox |
-| 3 | Sender is on your "Block sender" list | Filtered |
-| 4 | Contains an opt-out marker like `لغو11` | Filtered (spam) |
+| 3 | Sender is on your "Block sender" list | Ads |
+| 4 | Contains an opt-out marker like `لغو11` | Ads (spam) |
 | 5 | Looks like an OTP (`کد`, `رمز`, `code`… + 4–8 digits) | Inbox |
 | 6 | Looks like a bank message (`برداشت`, `واریز`, `مانده`, `ریال`…) | Inbox |
-| 7 | Ad keywords (`تخفیف`, `جشنواره`, links…) | Filtered (spam) |
-| 8 | Learned spam score ≥ 90% | Filtered (spam) |
+| 7 | Ad keywords (`تخفیف`, `جشنواره`, links…) | Ads (spam) |
+| 8 | Learned spam score ≥ 90% | Ads (spam) |
 | 9 | Learned spam score ≤ 10%, after you've taught it 5+ of each kind | Inbox |
-| 10 | Anything else | Filtered (quarantine) |
+| 10 | Anything else | Ads (quarantine) |
 
 ### On-device spam learning
 
-A small Naive Bayes classifier ([`SpamModel.kt`](app/src/main/java/com/dnd/blocker/SpamModel.kt)) learns from your choices in the **Filtered** tab: **Not spam** teaches it a good message, **Spam** and **Block sender** teach it spam. It starts with a few built-in Persian/English examples, normalizes Persian text (Arabic ي/ك, half-spaces, digits) and runs entirely on the phone. OTP and bank messages are checked before the classifier, so it can never hide them. You can see what it has learned, or reset it, in **Settings**.
+A small Naive Bayes classifier ([`SpamModel.kt`](app/src/main/java/com/dnd/blocker/SpamModel.kt)) learns from your choices in the **Ads** tab: **Not spam** teaches it a good message, **Spam** and **Block sender** teach it spam. It starts with a few built-in Persian/English examples, normalizes Persian text (Arabic ي/ك, half-spaces, digits) and runs entirely on the phone. OTP and bank messages are checked before the classifier, so it can never hide them. You can see what it has learned, or reset it, in **Settings**.
 
 MMS messages go through the same rules, using their subject and text. Pictures from filtered MMS are not kept, and MMS from blocked senders is never downloaded, which saves mobile data.
 
-Nothing is deleted automatically. Filtered messages wait in the **Filtered** tab, where you can mark them **Not spam** (moves to inbox and trusts the sender) or **Block sender**. Persian and Arabic digits are normalized before matching.
+Nothing is deleted automatically. Filtered messages wait in the **Ads** tab, where you can mark them **Not spam** (moves to inbox and trusts the sender) or **Block sender**. Persian and Arabic digits are normalized before matching.
 
 The filter rules live in [`SmsFilter.kt`](app/src/main/java/com/dnd/blocker/SmsFilter.kt) and are covered by unit tests in [`SmsFilterTest.kt`](app/src/test/java/com/dnd/blocker/SmsFilterTest.kt).
 

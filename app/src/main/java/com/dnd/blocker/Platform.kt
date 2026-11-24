@@ -35,6 +35,19 @@ object Contacts {
         }
     }
 
+    /** True when a saved contact has exactly this display name (SMS apps show names, not numbers). */
+    fun hasName(ctx: Context, name: String): Boolean {
+        if (name.isBlank() || !ctx.hasPermission(Manifest.permission.READ_CONTACTS)) return false
+        return try {
+            ctx.contentResolver.query(
+                ContactsContract.Contacts.CONTENT_URI, arrayOf(ContactsContract.Contacts._ID),
+                "${ContactsContract.Contacts.DISPLAY_NAME} = ?", arrayOf(name.trim()), null
+            )?.use { it.count > 0 } ?: false
+        } catch (e: Exception) {
+            false
+        }
+    }
+
     fun name(ctx: Context, number: String?): String? {
         if (number.isNullOrBlank() || !ctx.hasPermission(Manifest.permission.READ_CONTACTS)) return null
         val uri = Uri.withAppendedPath(ContactsContract.PhoneLookup.CONTENT_FILTER_URI, Uri.encode(number))
@@ -89,6 +102,23 @@ object Lang {
         config.setLocale(locale)
         config.setLayoutDirection(locale)
         return base.createConfigurationContext(config)
+    }
+}
+
+object Links {
+    const val DONATE = "https://hamibash.com/tablighgir"
+
+    /** Opens a web page in the browser. The browser connects; this app has no internet permission. */
+    fun open(ctx: Context, url: String) {
+        runCatching {
+            ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        }
+    }
+
+    /** System screen for choosing default apps, used to leave full mode. */
+    fun openDefaultApps(ctx: Context) {
+        runCatching { ctx.startActivity(Intent(android.provider.Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS)) }
+            .onFailure { runCatching { ctx.startActivity(Intent(android.provider.Settings.ACTION_SETTINGS)) } }
     }
 }
 

@@ -97,34 +97,37 @@ class MainActivity : ComponentActivity() {
 
 // ---------------- Theme ----------------
 
+// Brand: navy (trust, the cage) and amber (the caught ad).
 private val LightColors = lightColorScheme(
-    primary = Color(0xFF00696B), onPrimary = Color.White,
-    primaryContainer = Color(0xFF9CF1F2), onPrimaryContainer = Color(0xFF002021),
-    secondary = Color(0xFF4A6363), onSecondary = Color.White,
-    secondaryContainer = Color(0xFFCCE8E8), onSecondaryContainer = Color(0xFF051F20),
-    tertiary = Color(0xFF4B607C), onTertiary = Color.White,
-    background = Color(0xFFFAFDFC), onBackground = Color(0xFF191C1C),
-    surface = Color(0xFFFAFDFC), onSurface = Color(0xFF191C1C),
-    surfaceVariant = Color(0xFFDAE5E4), onSurfaceVariant = Color(0xFF3F4948),
-    surfaceContainerLowest = Color.White, surfaceContainerLow = Color(0xFFF4F8F7),
-    surfaceContainer = Color(0xFFEEF2F1), surfaceContainerHigh = Color(0xFFE8ECEB),
-    surfaceContainerHighest = Color(0xFFE2E6E5),
-    outline = Color(0xFF6F7979), outlineVariant = Color(0xFFBEC9C8),
+    primary = Color(0xFF0C447C), onPrimary = Color.White,
+    primaryContainer = Color(0xFFD6E4F7), onPrimaryContainer = Color(0xFF042C53),
+    secondary = Color(0xFF535F70), onSecondary = Color.White,
+    secondaryContainer = Color(0xFFD7E3F7), onSecondaryContainer = Color(0xFF101C2B),
+    tertiary = Color(0xFF8A5100), onTertiary = Color.White,
+    tertiaryContainer = Color(0xFFFFDDB5), onTertiaryContainer = Color(0xFF2B1700),
+    background = Color(0xFFF8F9FC), onBackground = Color(0xFF191C20),
+    surface = Color(0xFFF8F9FC), onSurface = Color(0xFF191C20),
+    surfaceVariant = Color(0xFFDFE2EB), onSurfaceVariant = Color(0xFF43474E),
+    surfaceContainerLowest = Color.White, surfaceContainerLow = Color(0xFFF2F3F7),
+    surfaceContainer = Color(0xFFECEEF2), surfaceContainerHigh = Color(0xFFE6E8EC),
+    surfaceContainerHighest = Color(0xFFE1E2E6),
+    outline = Color(0xFF73777F), outlineVariant = Color(0xFFC3C6CF),
 )
 
 private val DarkColors = darkColorScheme(
-    primary = Color(0xFF80D4D5), onPrimary = Color(0xFF003738),
-    primaryContainer = Color(0xFF004F51), onPrimaryContainer = Color(0xFF9CF1F2),
-    secondary = Color(0xFFB0CCCB), onSecondary = Color(0xFF1B3435),
-    secondaryContainer = Color(0xFF324B4B), onSecondaryContainer = Color(0xFFCCE8E8),
-    tertiary = Color(0xFFB3C8E8), onTertiary = Color(0xFF1C314B),
-    background = Color(0xFF191C1C), onBackground = Color(0xFFE0E3E2),
-    surface = Color(0xFF191C1C), onSurface = Color(0xFFE0E3E2),
-    surfaceVariant = Color(0xFF3F4948), onSurfaceVariant = Color(0xFFBEC9C8),
-    surfaceContainerLowest = Color(0xFF0F1414), surfaceContainerLow = Color(0xFF1E2424),
-    surfaceContainer = Color(0xFF252B2B), surfaceContainerHigh = Color(0xFF2F3636),
-    surfaceContainerHighest = Color(0xFF3A4141),
-    outline = Color(0xFF899392), outlineVariant = Color(0xFF3F4948),
+    primary = Color(0xFFA6C8FF), onPrimary = Color(0xFF003061),
+    primaryContainer = Color(0xFF0C447C), onPrimaryContainer = Color(0xFFD6E4FF),
+    secondary = Color(0xFFBBC7DB), onSecondary = Color(0xFF253140),
+    secondaryContainer = Color(0xFF3B4858), onSecondaryContainer = Color(0xFFD7E3F7),
+    tertiary = Color(0xFFFFB95C), onTertiary = Color(0xFF482900),
+    tertiaryContainer = Color(0xFF6A3C00), onTertiaryContainer = Color(0xFFFFDDB5),
+    background = Color(0xFF0F141B), onBackground = Color(0xFFE1E2E8),
+    surface = Color(0xFF0F141B), onSurface = Color(0xFFE1E2E8),
+    surfaceVariant = Color(0xFF43474E), onSurfaceVariant = Color(0xFFC3C6CF),
+    surfaceContainerLowest = Color(0xFF0A0E14), surfaceContainerLow = Color(0xFF171C23),
+    surfaceContainer = Color(0xFF1B2027), surfaceContainerHigh = Color(0xFF252A32),
+    surfaceContainerHighest = Color(0xFF30353D),
+    outline = Color(0xFF8D9199), outlineVariant = Color(0xFF43474E),
 )
 
 @Composable
@@ -145,12 +148,15 @@ fun AppTheme(mode: String, content: @Composable () -> Unit) {
 
 // ---------------- Shared helpers ----------------
 
-fun runtimePermissions(): Array<String> = buildList {
+/** Gatekeeper mode needs only contacts (to never touch their messages) and notifications. SMS permissions are for full mode. */
+fun runtimePermissions(fullMode: Boolean): Array<String> = buildList {
     add(Manifest.permission.READ_CONTACTS)
-    add(Manifest.permission.READ_SMS)
-    add(Manifest.permission.SEND_SMS)
-    add(Manifest.permission.RECEIVE_SMS)
-    add(Manifest.permission.RECEIVE_MMS)
+    if (fullMode) {
+        add(Manifest.permission.READ_SMS)
+        add(Manifest.permission.SEND_SMS)
+        add(Manifest.permission.RECEIVE_SMS)
+        add(Manifest.permission.RECEIVE_MMS)
+    }
     if (Build.VERSION.SDK_INT >= 33) add(Manifest.permission.POST_NOTIFICATIONS)
 }.toTypedArray()
 
@@ -219,7 +225,7 @@ private fun Onboarding(onDone: () -> Unit) {
     var step by rememberSaveable { mutableIntStateOf(0) }
     var refresh by remember { mutableIntStateOf(0) }
     val resume = rememberResumeTick()
-    val lastStep = 4
+    val lastStep = 3
 
     val permLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -228,7 +234,6 @@ private fun Onboarding(onDone: () -> Unit) {
         ActivityResultContracts.StartActivityForResult()
     ) { refresh++ }
 
-    val smsHeld = remember(resume, refresh) { Roles.held(ctx, RoleManager.ROLE_SMS) }
     val callHeld = remember(resume, refresh) { Roles.held(ctx, RoleManager.ROLE_CALL_SCREENING) }
     val notifHeld = remember(resume, refresh) { AppRules.accessGranted(ctx) }
 
@@ -252,7 +257,7 @@ private fun Onboarding(onDone: () -> Unit) {
                 Spacer(Modifier.weight(1f))
                 Button(onClick = {
                     when (step) {
-                        0 -> permLauncher.launch(runtimePermissions())
+                        0 -> permLauncher.launch(runtimePermissions(fullMode = false))
                         lastStep -> onDone()
                         else -> step++
                     }
@@ -275,15 +280,11 @@ private fun Onboarding(onDone: () -> Unit) {
                     LanguagePicker()
                 }
                 1 -> {
-                    OnboardingHeader(R.drawable.ic_sms_filter, R.string.onb_sms_title, R.string.onb_sms_body)
-                    RoleAction(smsHeld, R.string.make_default) { requestRole(RoleManager.ROLE_SMS) }
-                }
-                2 -> {
                     OnboardingHeader(R.drawable.ic_call_block, R.string.onb_call_title, R.string.onb_call_body)
                     RoleAction(callHeld, R.string.enable) { requestRole(RoleManager.ROLE_CALL_SCREENING) }
                 }
-                3 -> {
-                    OnboardingHeader(R.drawable.ic_bell_off, R.string.onb_notif_title, R.string.onb_notif_body)
+                2 -> {
+                    OnboardingHeader(R.drawable.ic_sms_filter, R.string.onb_sms_title, R.string.onb_sms_body)
                     RoleAction(notifHeld, R.string.allow_access) { AppRules.openAccessSettings(ctx) }
                 }
                 else -> OnboardingHeader(R.drawable.ic_check_circle, R.string.onb_done_title, R.string.onb_done_body)
@@ -348,6 +349,11 @@ fun App(prefillTo: String?, startTab: Int, onPrefillConsumed: () -> Unit) {
     var showNew by remember { mutableStateOf(false) }
     val names = remember { NameCache(ctx) }
     val version = refresh + rememberProviderChanges()
+    val resume = rememberResumeTick()
+    val fullMode = remember(refresh, resume) { Roles.held(ctx, RoleManager.ROLE_SMS) }
+    // Tab keys stay fixed (notifications open tabs by key); Messages only exists in full mode.
+    val tabs = if (fullMode) listOf(0, 1, 2, 3, 4) else listOf(1, 2, 3, 4)
+    if (tab !in tabs) tab = 1
 
     LaunchedEffect(startTab) { tab = startTab; openThread = null }
 
@@ -358,8 +364,8 @@ fun App(prefillTo: String?, startTab: Int, onPrefillConsumed: () -> Unit) {
         ActivityResultContracts.StartActivityForResult()
     ) { refresh++ }
 
-    LaunchedEffect(Unit) {
-        val missing = runtimePermissions().filter { !ctx.hasPermission(it) }
+    LaunchedEffect(fullMode) {
+        val missing = runtimePermissions(fullMode).filter { !ctx.hasPermission(it) }
         if (missing.isNotEmpty()) permLauncher.launch(missing.toTypedArray())
     }
     LaunchedEffect(prefillTo) {
@@ -384,10 +390,11 @@ fun App(prefillTo: String?, startTab: Int, onPrefillConsumed: () -> Unit) {
             stringResource(R.string.tab_calls), stringResource(R.string.tab_apps),
             stringResource(R.string.tab_settings),
         )
+        val title = titles[tab]
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text(titles[tab]) },
+                    title = { Text(title) },
                     actions = {
                         IconButton(onClick = { refresh++ }) {
                             Icon(Icons.Default.Refresh, stringResource(R.string.refresh))
@@ -397,7 +404,8 @@ fun App(prefillTo: String?, startTab: Int, onPrefillConsumed: () -> Unit) {
             },
             bottomBar = {
                 NavigationBar {
-                    titles.forEachIndexed { i, t ->
+                    tabs.forEach { i ->
+                        val t = titles[i]
                         NavigationBarItem(
                             selected = tab == i, onClick = { tab = i; refresh++ },
                             icon = { TabIcon(i, t) }, label = { Text(t, maxLines = 1) }

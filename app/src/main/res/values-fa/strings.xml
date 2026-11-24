@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">مزاحم نشو</string>
+    <string name="app_name">تبلیغ‌گیر</string>
 
     <!-- Tabs and common -->
     <string name="tab_messages">پیام‌ها</string>
-    <string name="tab_filtered">فیلترشده</string>
+    <string name="tab_filtered">تبلیغ‌ها</string>
     <string name="tab_calls">تماس‌ها</string>
     <string name="tab_apps">برنامه‌ها</string>
     <string name="tab_settings">تنظیمات</string>
@@ -53,9 +53,9 @@
     <string name="delete_needs_default">برای حذف گفتگوها، این برنامه را برنامه پیش‌فرض پیامک کنید.</string>
 
     <!-- Filtered -->
-    <string name="filtered_count">%1$d پیام فیلترشده</string>
+    <string name="filtered_count">%1$d تبلیغ گرفته شد</string>
     <string name="delete_all">حذف همه</string>
-    <string name="nothing_filtered">هنوز چیزی فیلتر نشده</string>
+    <string name="nothing_filtered">هنوز تبلیغی گرفته نشده</string>
     <string name="not_spam">تبلیغ نیست</string>
     <string name="spam">تبلیغ است</string>
     <string name="block_sender">مسدود کردن فرستنده</string>
@@ -94,7 +94,7 @@
     <string name="reset_title">یادگیری بازنشانی شود؟</string>
     <string name="reset_body">هرچه به آن یاد داده‌اید فراموش می‌شود. پیام‌ها و فهرست‌های مسدود حفظ می‌شوند.</string>
     <string name="reset">بازنشانی</string>
-    <string name="settings_footer">پیامک و پیام چندرسانه‌ای مخاطبین، رمزهای یکبار مصرف و پیام‌های بانکی به «پیام‌ها» می‌روند. تبلیغ‌ها و فرستنده‌های ناشناس به «فیلترشده» می‌روند و هیچ پیامی از بین نمی‌رود.</string>
+    <string name="settings_footer">پیام مخاطبین، رمز یکبار مصرف و پیام بانک هرگز دست نمی‌خورد. این برنامه به اینترنت دسترسی ندارد و هیچ اطلاعاتی از گوشی شما خارج نمی‌شود.</string>
     <string name="appearance">ظاهر</string>
     <string name="language">زبان</string>
     <string name="lang_system">پیش‌فرض گوشی</string>
@@ -122,7 +122,7 @@
 
     <!-- Notifications -->
     <string name="channel_messages">پیام‌ها</string>
-    <string name="channel_filtered">پیام‌های فیلترشده</string>
+    <string name="channel_filtered">تبلیغ‌های گرفته‌شده</string>
     <string name="notif_filtered_title">%1$d پیام فیلتر شد</string>
     <string name="notif_filtered_text">برای بررسی بزنید</string>
 
@@ -130,14 +130,26 @@
     <string name="onb_next">بعدی</string>
     <string name="onb_skip">رد شدن</string>
     <string name="onb_start">شروع</string>
-    <string name="onb_welcome_title">به «مزاحم نشو» خوش آمدید</string>
-    <string name="onb_welcome_body">تماس‌های تبلیغاتی را مسدود کنید، پیامک‌های تبلیغاتی را فیلتر کنید و تبلیغ برنامه‌ها را پنهان کنید، بدون اینکه رمز یکبار مصرف یا پیام بانکی را از دست بدهید. همه‌چیز روی گوشی خودتان انجام می‌شود.</string>
-    <string name="onb_sms_title">فیلتر پیامک‌های تبلیغاتی</string>
-    <string name="onb_sms_body">این برنامه را برنامه پیش‌فرض پیامک کنید. پیام مخاطبین، رمز یکبار مصرف و پیامک بانک همیشه به دستتان می‌رسد. تبلیغ‌ها و فرستنده‌های ناشناس به «فیلترشده» می‌روند تا بعداً بررسی کنید.</string>
+    <string name="onb_welcome_title">به «تبلیغ‌گیر» خوش آمدید</string>
+    <string name="onb_welcome_body">تماس‌های تبلیغاتی را مسدود و پیامک‌های تبلیغاتی را بی‌صدا کنید، بدون اینکه برنامه تلفن یا پیامک خود را عوض کنید. رمز یکبار مصرف، پیام بانک و پیام مخاطبین همیشه می‌رسد. این برنامه به اینترنت دسترسی ندارد.</string>
+    <string name="onb_sms_title">بی‌صدا کردن پیامک تبلیغاتی</string>
+    <string name="onb_sms_body">دسترسی به اعلان‌ها را بدهید. وقتی برنامه پیامک شما تبلیغی نشان دهد، «تبلیغ‌گیر» اعلان آن را بی‌صدا حذف می‌کند. پیام در برنامه پیامک شما می‌ماند ولی مزاحمتان نمی‌شود. در بخش «برنامه‌ها» هم می‌توانید تبلیغ برنامه‌های دیگر را پنهان کنید.</string>
     <string name="onb_call_title">مسدود کردن تماس‌های تبلیغاتی</string>
-    <string name="onb_call_body">با فعال کردن غربالگری تماس، تماس‌های ۰۹۴۰، ۰۹۴۱ و ۰۹۴۲ پیش از زنگ خوردن رد می‌شوند. مخاطبین شما هرگز مسدود نمی‌شوند.</string>
+    <string name="onb_call_body">با فعال کردن غربالگری تماس، تماس‌های ۰۹۴۰، ۰۹۴۱ و ۰۹۴۲ پیش از زنگ خوردن رد می‌شوند. برنامه تلفن شما همان می‌ماند و مخاطبین هرگز مسدود نمی‌شوند.</string>
     <string name="onb_notif_title">پنهان کردن تبلیغ برنامه‌ها</string>
     <string name="onb_notif_body">اختیاری. دسترسی به اعلان‌ها را بدهید، سپس در بخش «برنامه‌ها» انتخاب کنید تبلیغ کدام برنامه‌ها پنهان شود.</string>
     <string name="onb_done_title">همه‌چیز آماده است</string>
-    <string name="onb_done_body">هر وقت خواستید می‌توانید این‌ها را در تنظیمات تغییر دهید.</string>
+    <string name="onb_done_body">می‌خواهید تبلیغ‌ها از صندوق پیامک هم حذف شوند؟ «حالت کامل» را در تنظیمات روشن کنید.</string>
+    <string name="gate_note">این تبلیغ‌ها هنوز در برنامه پیامک شما هستند؛ فقط اعلانشان بی‌صدا حذف شد.</string>
+    <string name="notif_access">دسترسی به اعلان‌ها (بی‌صدا کردن پیامک تبلیغاتی)</string>
+    <string name="full_mode">حالت کامل</string>
+    <string name="full_mode_body">«تبلیغ‌گیر» را برنامه پیامک خود کنید تا تبلیغ‌ها اصلاً به صندوق پیامک نرسند. از این به بعد پیام‌ها را همین‌جا می‌خوانید و می‌فرستید.</string>
+    <string name="full_mode_on">حالت کامل روشن است. تبلیغ‌ها به‌جای صندوق پیامک به بخش «تبلیغ‌ها» می‌روند.</string>
+    <string name="turn_on">روشن کردن</string>
+    <string name="turn_off">خاموش کردن</string>
+    <string name="support">حمایت از ما</string>
+    <string name="support_body">«تبلیغ‌گیر» رایگان است، تبلیغ ندارد و به اینترنت دسترسی ندارد. اگر به کارتان آمده، می‌توانید از ادامه ساختش حمایت کنید.</string>
+    <string name="donate">حمایت در حامی‌باش</string>
+    <string name="privacy_note">بدون مجوز اینترنت: این برنامه نمی‌تواند هیچ اطلاعاتی را جایی بفرستد.</string>
+    <string name="listener_label">تبلیغ‌گیر</string>
 </resources>

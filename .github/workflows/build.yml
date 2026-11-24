@@ -19,7 +19,16 @@ jobs:
           gradle-version: '8.11.1'
       - name: Test and build
         run: gradle testDebugUnitTest assembleDebug assembleRelease
+      - name: Check the app has no internet permission
+        run: |
+          AAPT=$(ls "$ANDROID_HOME"/build-tools/*/aapt | sort -V | tail -1)
+          for apk in app/build/outputs/apk/*/*.apk; do
+            if "$AAPT" dump permissions "$apk" | grep "android.permission.INTERNET"; then
+              echo "::error::$apk requests internet access. Tabligh-gir must stay offline."
+              exit 1
+            fi
+          done
       - uses: actions/upload-artifact@v4
         with:
-          name: app-debug
+          name: tablighgir-debug
           path: app/build/outputs/apk/debug/app-debug.apk

@@ -21,6 +21,10 @@ class PromoNotificationListener : NotificationListenerService() {
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         if (sbn.packageName == packageName) return
+        if (SmsGate.applies(this, sbn.packageName)) {
+            SmsGate.onPosted(this, sbn) { key -> cancelNotification(key) }
+            return
+        }
         val mode = AppRules.mode(this, sbn.packageName) ?: return
         val n = sbn.notification ?: return
         val extras = n.extras

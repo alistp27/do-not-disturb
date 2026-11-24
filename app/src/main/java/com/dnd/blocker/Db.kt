@@ -8,6 +8,8 @@ import android.database.sqlite.SQLiteOpenHelper
 data class Filtered(
     val id: Long, val address: String, val body: String,
     val date: Long, val verdict: String, val reason: String,
+    /** Db.SOURCE_SMS (we received it as the SMS app) or Db.SOURCE_NOTIFICATION (gatekeeper). */
+    val source: String = Db.SOURCE_SMS,
 )
 
 data class DismissedNotification(
@@ -19,10 +21,10 @@ data class BlockedCall(val id: Long, val number: String, val date: Long, val rea
 
 /** Local database for filtered messages, blocked calls and the user's allow/deny lists. */
 class Db private constructor(ctx: Context) :
-    SQLiteOpenHelper(ctx.applicationContext, "dnd.db", null, 3) {
+    SQLiteOpenHelper(ctx.applicationContext, "dnd.db", null, 4) {
 
     override fun onCreate(db: SQLiteDatabase) {
-        db.execSQL("CREATE TABLE filtered(id INTEGER PRIMARY KEY AUTOINCREMENT, address TEXT, body TEXT, date INTEGER, verdict TEXT, reason TEXT)")
+        db.execSQL("CREATE TABLE filtered(id INTEGER PRIMARY KEY AUTOINCREMENT, address TEXT, body TEXT, date INTEGER, verdict TEXT, reason TEXT, source TEXT NOT NULL DEFAULT 'sms')")
         db.execSQL("CREATE TABLE blocked_calls(id INTEGER PRIMARY KEY AUTOINCREMENT, number TEXT, date INTEGER, reason TEXT)")
         db.execSQL("CREATE TABLE whitelist(number TEXT PRIMARY KEY)")
         db.execSQL("CREATE TABLE blacklist(number TEXT PRIMARY KEY)")
@@ -33,6 +35,7 @@ class Db private constructor(ctx: Context) :
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         if (oldVersion < 2) createModelTables(db)
         if (oldVersion < 3) createNotificationTables(db)
+        if (oldVersion < 4) db.execSQL("ALTER TABLE filtered ADD COLUMN source TEXT NOT NULL DEFAULT 'sms'")
     }
 
     private fun createNotificationTables(db: SQLiteDatabase) {
@@ -113,20 +116,20 @@ class Db private constructor(ctx: Context) :
         writableDatabase.execSQL("UPDATE nb_docs SET spam = 0, ham = 0 WHERE id = 1")
     }
 
-    fun addFiltered(address: String, body: String, date: Long, result: FilterResult) {
+    fun addFiltered(address: String, body: String, date: Long, result: FilterResult, source: String = SOURCE_SMS) {
         writableDatabase.insert("filtered", null, ContentValues().apply {
             put("address", address); put("body", body); put("date", date)
-            put("verdict", result.verdict.name); put("reason", result.reason)
+            put("verdict", result.verdict.name); put("reason", result.reason); put("source", source)
         })
     }
 
     fun filtered(): List<Filtered> =
         readableDatabase.rawQuery(
-            "SELECT id,address,body,date,verdict,reason FROM filtered ORDER BY date DESC", null
+            "SELECT id,address,body,date,verdict,reason,source FROM filtered ORDER BY date DESC", null
         ).use { c ->
             buildList {
                 while (c.moveToNext()) add(
-                    Filtered(c.getLong(0), c.getString(1), c.getString(2), c.getLong(3), c.getString(4), c.getString(5))
+                    Filtered(c.getLong(0), c.getString(1), c.getString(2), c.getLong(3), c.getString(4), c.getString(5), c.getString(6))
                 )
             }
         }
@@ -166,6 +169,8 @@ class Db private constructor(ctx: Context) :
     fun blacklist(number: String) { addToList("blacklist", number); writableDatabase.delete("whitelist", "number=?", arrayOf(number)) }
 
     companion object {
+        const val SOURCE_SMS = "sms"
+        const val SOURCE_NOTIFICATION = "notification"
         @Volatile private var instance: Db? = null
         fun get(ctx: Context): Db = instance ?: synchronized(this) { instance ?: Db(ctx).also { instance = it } }
     }

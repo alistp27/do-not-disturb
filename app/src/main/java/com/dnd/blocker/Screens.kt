@@ -494,6 +494,11 @@ fun FilteredScreen(version: Int, onChanged: () -> Unit) {
             Text(stringResource(R.string.filtered_count, items.size), style = MaterialTheme.typography.labelLarge)
             TextButton(onClick = { db.clearFiltered(); onChanged() }) { Text(stringResource(R.string.delete_all)) }
         }
+        if (items.any { it.source == Db.SOURCE_NOTIFICATION }) Text(
+            stringResource(R.string.gate_note),
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+        )
         if (items.isEmpty()) EmptyState(stringResource(R.string.nothing_filtered))
         LazyColumn {
             items(items, key = { it.id }) { f ->
@@ -506,13 +511,13 @@ fun FilteredScreen(version: Int, onChanged: () -> Unit) {
                         val verdict = stringResource(if (f.verdict == "SPAM") R.string.verdict_spam else R.string.verdict_quarantine)
                         Text(
                             "$verdict · ${reasonText(f.reason)}",
-                            style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary
+                            style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(f.body)
                         FlowRow {
                             TextButton(onClick = {
-                                SmsStore.insertInbox(ctx, f.address, f.body, f.date)
+                                if (f.source == Db.SOURCE_SMS) SmsStore.insertInbox(ctx, f.address, f.body, f.date)
                                 db.whitelist(SmsFilter.normalizeNumber(f.address))
                                 Learner.learn(ctx, f.body, isSpam = false)
                                 db.deleteFiltered(f.id); onChanged()
@@ -700,6 +705,7 @@ fun SettingsScreen(version: Int, requestRole: (String) -> Unit) {
     val resume = rememberResumeTick()
     val smsRole = remember(version, resume) { Roles.held(ctx, RoleManager.ROLE_SMS) }
     val callRole = remember(version, resume) { Roles.held(ctx, RoleManager.ROLE_CALL_SCREENING) }
+    val notifAccess = remember(version, resume) { AppRules.accessGranted(ctx) }
     var blockHidden by remember { mutableStateOf(Prefs.blockHidden(ctx)) }
     var blockUnknown by remember { mutableStateOf(Prefs.blockAllUnknown(ctx)) }
     var learnVersion by remember { mutableIntStateOf(0) }
@@ -711,8 +717,18 @@ fun SettingsScreen(version: Int, requestRole: (String) -> Unit) {
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         SectionTitle(R.string.permissions)
-        RoleRow(stringResource(R.string.default_sms), smsRole) { requestRole(RoleManager.ROLE_SMS) }
         RoleRow(stringResource(R.string.call_screening), callRole) { requestRole(RoleManager.ROLE_CALL_SCREENING) }
+        RoleRow(stringResource(R.string.notif_access), notifAccess) { AppRules.openAccessSettings(ctx) }
+        Text(stringResource(R.string.privacy_note), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+        HorizontalDivider()
+        SectionTitle(R.string.full_mode)
+        Text(
+            stringResource(if (smsRole) R.string.full_mode_on else R.string.full_mode_body),
+            style = MaterialTheme.typography.bodySmall
+        )
+        if (smsRole) OutlinedButton(onClick = { Links.openDefaultApps(ctx) }) { Text(stringResource(R.string.turn_off)) }
+        else OutlinedButton(onClick = { requestRole(RoleManager.ROLE_SMS) }) { Text(stringResource(R.string.turn_on)) }
 
         HorizontalDivider()
         SectionTitle(R.string.calls_section)
@@ -745,6 +761,21 @@ fun SettingsScreen(version: Int, requestRole: (String) -> Unit) {
             },
             dismissButton = { TextButton(onClick = { confirmReset = false }) { Text(stringResource(R.string.cancel)) } }
         )
+
+        HorizontalDivider()
+        SectionTitle(R.string.support)
+        Text(stringResource(R.string.support_body), style = MaterialTheme.typography.bodySmall)
+        Button(
+            onClick = { Links.open(ctx, Links.DONATE) },
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+            )
+        ) {
+            Icon(Icons.Default.Favorite, null, Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(R.string.donate))
+        }
 
         HorizontalDivider()
         Text(stringResource(R.string.settings_footer), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

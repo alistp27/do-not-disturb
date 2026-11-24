@@ -13,12 +13,12 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.dnd.blocker"
+        applicationId = "ir.tablighgir.app"
         minSdk = 29
         targetSdk = 35
         // The Release workflow passes these from the git tag and run number.
         versionCode = (project.findProperty("versionCode") as String?)?.toInt() ?: 1
-        versionName = (project.findProperty("versionName") as String?) ?: "0.1.0"
+        versionName = (project.findProperty("versionName") as String?) ?: "1.0.0"
     }
 
     signingConfigs {
