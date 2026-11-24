@@ -66,6 +66,19 @@ object Prefs {
     fun setOnboarded(ctx: Context, v: Boolean) = p(ctx).edit().putBoolean("onboarded", v).apply()
 }
 
+/**
+ * Archived conversations, stored as thread id -> date of the newest message when archived.
+ * A newer message brings the conversation back to the main list.
+ */
+object Archive {
+    private fun p(ctx: Context) = ctx.getSharedPreferences("archive", Context.MODE_PRIVATE)
+    fun all(ctx: Context): Map<Long, Long> =
+        p(ctx).all.mapNotNull { (k, v) -> k.toLongOrNull()?.let { id -> (v as? Long)?.let { id to it } } }.toMap()
+    fun isArchived(map: Map<Long, Long>, t: ThreadInfo) = map[t.id]?.let { t.date <= it } == true
+    fun add(ctx: Context, t: ThreadInfo) = p(ctx).edit().putLong(t.id.toString(), t.date).apply()
+    fun remove(ctx: Context, id: Long) = p(ctx).edit().remove(id.toString()).apply()
+}
+
 /** Applies the in-app language choice (and its text direction) to a context. */
 object Lang {
     fun wrap(base: Context): Context {

@@ -36,6 +36,12 @@
     <string name="status_failed">Failed</string>
     <string name="phone_numbers">Phone numbers, comma separated</string>
     <string name="start">Start</string>
+    <string name="archive">Archive</string>
+    <string name="unarchive">Unarchive</string>
+    <string name="archived_title">Archived (%1$d)</string>
+    <string name="archived_help">Swipe to move back. A new message also brings a conversation back.</string>
+    <string name="archived_one">Conversation archived</string>
+    <string name="undo">Undo</string>
     <string name="search_conversations">Search conversations</string>
     <string name="clear">Clear</string>
     <string name="no_results">No matching conversations</string>

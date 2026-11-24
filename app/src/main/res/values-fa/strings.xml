@@ -36,6 +36,12 @@
     <string name="status_failed">ناموفق</string>
     <string name="phone_numbers">شماره‌ها، با کاما جدا کنید</string>
     <string name="start">شروع</string>
+    <string name="archive">بایگانی</string>
+    <string name="unarchive">خروج از بایگانی</string>
+    <string name="archived_title">بایگانی‌شده (%1$d)</string>
+    <string name="archived_help">برای برگرداندن بکشید. پیام جدید هم گفتگو را برمی‌گرداند.</string>
+    <string name="archived_one">گفتگو بایگانی شد</string>
+    <string name="undo">واگرد</string>
     <string name="search_conversations">جستجوی گفتگوها</string>
     <string name="clear">پاک کردن</string>
     <string name="no_results">گفتگویی پیدا نشد</string>

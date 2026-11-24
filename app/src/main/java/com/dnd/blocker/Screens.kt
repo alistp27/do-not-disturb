@@ -13,6 +13,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -146,8 +147,21 @@ fun ThreadsScreen(version: Int, names: NameCache, requestRole: (String) -> Unit,
     val mms = stringResource(R.string.mms)
     val notDefault = stringResource(R.string.delete_needs_default)
 
+    var archiveTick by remember { mutableIntStateOf(0) }
+    var showArchived by rememberSaveable { mutableStateOf(false) }
+    var lastArchived by remember { mutableStateOf<ThreadInfo?>(null) }
+    val archive = remember(archiveTick) { Archive.all(ctx) }
+    val archivedThreads = threads.filter { Archive.isArchived(archive, it) }
+    if (showArchived) BackHandler { showArchived = false }
+    LaunchedEffect(lastArchived) { if (lastArchived != null) { kotlinx.coroutines.delay(4000); lastArchived = null } }
+
     val q = SmsFilter.normalizeDigits(query.trim()).lowercase()
-    val shown = if (q.isEmpty()) threads else threads.filter { t ->
+    val base = when {
+        q.isNotEmpty() -> threads
+        showArchived -> archivedThreads
+        else -> threads.filter { !Archive.isArchived(archive, it) }
+    }
+    val shown = if (q.isEmpty()) base else base.filter { t ->
         t.id in bodyHits ||
             names.of(t.addresses, unknown).lowercase().contains(q) ||
             t.addresses.any { SmsFilter.normalizeDigits(it).contains(q) || SmsFilter.normalizeNumber(it).contains(q) } ||
@@ -187,13 +201,56 @@ fun ThreadsScreen(version: Int, names: NameCache, requestRole: (String) -> Unit,
                 shape = RoundedCornerShape(28.dp),
             )
         }
+        if (q.isEmpty() && selected.isEmpty()) {
+            if (showArchived) ListItem(
+                modifier = Modifier.clickable { showArchived = false },
+                leadingContent = { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) },
+                headlineContent = { Text(stringResource(R.string.archived_title, archivedThreads.size), style = MaterialTheme.typography.titleMedium) },
+                supportingContent = { Text(stringResource(R.string.archived_help)) },
+            ) else if (archivedThreads.isNotEmpty()) ListItem(
+                modifier = Modifier.clickable { showArchived = true },
+                leadingContent = { Icon(Icons.Default.Lock, null) },
+                headlineContent = { Text(stringResource(R.string.archived_title, archivedThreads.size)) },
+            )
+        }
+        lastArchived?.let { t ->
+            Surface(color = MaterialTheme.colorScheme.inverseSurface) {
+                Row(Modifier.fillMaxWidth().padding(start = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.archived_one), Modifier.weight(1f), color = MaterialTheme.colorScheme.inverseOnSurface)
+                    TextButton(onClick = { Archive.remove(ctx, t.id); archiveTick++; lastArchived = null }) {
+                        Text(stringResource(R.string.undo), color = MaterialTheme.colorScheme.inversePrimary)
+                    }
+                }
+            }
+        }
         if (threads.isEmpty()) EmptyState(stringResource(R.string.no_conversations))
-        else if (shown.isEmpty()) EmptyState(stringResource(R.string.no_results))
+        else if (shown.isEmpty()) EmptyState(stringResource(if (q.isEmpty()) R.string.no_conversations else R.string.no_results))
         LazyColumn {
             items(shown, key = { it.id }) { t ->
                 val weight = if (t.unread) FontWeight.Bold else FontWeight.Normal
                 val isSel = t.id in selected
                 val toggle = { selected = if (isSel) selected - t.id else selected + t.id }
+                val isArch = Archive.isArchived(archive, t)
+                val swipe = rememberSwipeToDismissBoxState(confirmValueChange = { v ->
+                    if (v == SwipeToDismissBoxValue.Settled || selected.isNotEmpty()) false
+                    else {
+                        if (isArch) Archive.remove(ctx, t.id) else { Archive.add(ctx, t); lastArchived = t }
+                        archiveTick++
+                        true
+                    }
+                })
+                SwipeToDismissBox(swipe, backgroundContent = {
+                    val start = swipe.dismissDirection == SwipeToDismissBoxValue.StartToEnd
+                    Box(
+                        Modifier.fillMaxSize().background(MaterialTheme.colorScheme.tertiaryContainer).padding(horizontal = 24.dp),
+                        contentAlignment = if (start) Alignment.CenterStart else Alignment.CenterEnd,
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Icon(if (isArch) Icons.Default.Refresh else Icons.Default.Lock, null, tint = MaterialTheme.colorScheme.onTertiaryContainer)
+                            Text(stringResource(if (isArch) R.string.unarchive else R.string.archive), color = MaterialTheme.colorScheme.onTertiaryContainer)
+                        }
+                    }
+                }) {
                 ListItem(
                     modifier = Modifier.combinedClickable(
                         onClick = { if (selected.isNotEmpty()) toggle() else onOpen(OpenThread(t.id, t.addresses)) },
@@ -215,6 +272,7 @@ fun ThreadsScreen(version: Int, names: NameCache, requestRole: (String) -> Unit,
                     },
                     trailingContent = { Text(ago(t.date), style = MaterialTheme.typography.labelSmall) }
                 )
+                }
             }
         }
     }
