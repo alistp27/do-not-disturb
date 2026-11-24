@@ -2,6 +2,33 @@
 
 Thanks for helping! This takes about 30–45 minutes. You'll install the app on an Android emulator, send it fake ad SMS and calls, and send back screenshots plus a short report.
 
+## Retest for 1.0.1 (short, about 10 minutes)
+
+Already tested 1.0.0? You only need this section.
+
+1. Download `tablighgir-v1.0.1.apk` from https://github.com/alistp27/do-not-disturb/releases/latest and drag it onto the emulator. It updates 1.0.0 in place.
+2. Run these checks:
+
+| # | Do this | Expected |
+|---|---|---|
+| R1 | Settings → language **فارسی**, open **Calls** and **Ads** tabs | Times read like «۶ دقیقه پیش» / «همین الان», fully Persian, number on the correct side |
+| R2 | Switch back to English | Times read like "6 min ago" / "just now" |
+| R3 | Ads tab with exactly one ad caught | Says "1 ad caught" (not "1 ads") |
+| R4 | Android Settings → Apps → Default apps → **Caller ID & spam app** → set to None, then open Tabligh-gir | Red warning on the main screen: call screening is off |
+| R5 | Android Settings → Notifications → **Device & app notifications** → turn off Tabligh-gir, open the app | Red warning: notification access is off |
+| R6 | Tap the warning | Opens the app's Settings tab; turn both back on → warning disappears |
+| R7 | Clear app data (Settings → Apps → Tabligh-gir → Storage → Clear), redo the setup 2–3 times | Setup never skips call screening or notification access. If it does, the red warning must show |
+
+Report:
+
+```
+Emulator: Pixel 8, API __
+App version: 1.0.1
+R1 __ R2 __ R3 __ R4 __ R5 __ R6 __ R7 __
+Screenshots: R1 (Calls + Ads in فارسی), R4/R5 warning
+Problems / notes:
+```
+
 ---
 
 ## 1. Set up the emulator (once)
@@ -13,7 +40,7 @@ Thanks for helping! This takes about 30–45 minutes. You'll install the app on 
 
 ## 2. Install the app
 
-1. Download `tablighgir-v1.0.0.apk` from
+1. Download `tablighgir-v1.0.1.apk` from
    https://github.com/alistp27/do-not-disturb/releases/latest
 2. **Drag the APK file onto the emulator window.** It installs by itself.
 3. Open **تبلیغ‌گیر** from the app drawer.
@@ -108,7 +135,7 @@ Copy this, fill it in, send with the screenshots:
 
 ```
 Emulator: Pixel 8, API __
-App version: 1.0.0
+App version: 1.0.1
 A1 __ A2 __ A3 __
 B1 __ B2 __ B3 __ B4 __
 C1 __ C2 __ C3 __ C4 __ C5 __ C6 __ C7 __ C8 __
