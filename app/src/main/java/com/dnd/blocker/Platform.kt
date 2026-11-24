@@ -136,6 +136,28 @@ object Notifier {
     }
 }
 
+/** Holds the on-device spam model and saves what the user teaches it. */
+object Learner {
+    @Volatile private var model: SpamModel? = null
+
+    fun model(ctx: Context): SpamModel = model ?: synchronized(this) {
+        model ?: SpamModel.seeded().also { Db.get(ctx).loadModelInto(it); model = it }
+    }
+
+    fun learn(ctx: Context, text: String, isSpam: Boolean) {
+        val body = text.removePrefix("[MMS] ")
+        val tokens = model(ctx).train(body, isSpam)
+        Db.get(ctx).saveTraining(tokens, isSpam)
+    }
+
+    fun reset(ctx: Context) {
+        synchronized(this) {
+            Db.get(ctx).resetModel()
+            model = null
+        }
+    }
+}
+
 object MessageRouter {
     fun route(ctx: Context, address: String, body: String, date: Long) {
         val db = Db.get(ctx)
@@ -145,6 +167,7 @@ object MessageRouter {
             isContact = Contacts.isContact(ctx, address),
             isWhitelisted = db.isWhitelisted(number),
             isBlacklisted = db.isBlacklisted(number),
+            model = Learner.model(ctx),
         )
         if (result.verdict == Verdict.INBOX) {
             SmsStore.insertInbox(ctx, address, body, date)
@@ -164,6 +187,7 @@ object MessageRouter {
             isContact = Contacts.isContact(ctx, from),
             isWhitelisted = db.isWhitelisted(SmsFilter.normalizeNumber(from)),
             isBlacklisted = db.isBlacklisted(SmsFilter.normalizeNumber(from)),
+            model = Learner.model(ctx),
         )
         if (result.verdict == Verdict.INBOX) {
             MmsStore.persistIncoming(ctx, m)

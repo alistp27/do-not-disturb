@@ -23,7 +23,13 @@ Each incoming message is checked in this order; the first match wins:
 | 5 | Looks like an OTP (`کد`, `رمز`, `code`… + 4–8 digits) | Inbox |
 | 6 | Looks like a bank message (`برداشت`, `واریز`, `مانده`, `ریال`…) | Inbox |
 | 7 | Ad keywords (`تخفیف`, `جشنواره`, links…) | Filtered (spam) |
-| 8 | Anything else | Filtered (quarantine) |
+| 8 | Learned spam score ≥ 90% | Filtered (spam) |
+| 9 | Learned spam score ≤ 10%, after you've taught it 5+ of each kind | Inbox |
+| 10 | Anything else | Filtered (quarantine) |
+
+### On-device spam learning
+
+A small Naive Bayes classifier ([`SpamModel.kt`](app/src/main/java/com/dnd/blocker/SpamModel.kt)) learns from your choices in the **Filtered** tab: **Not spam** teaches it a good message, **Spam** and **Block sender** teach it spam. It starts with a few built-in Persian/English examples, normalizes Persian text (Arabic ي/ك, half-spaces, digits) and runs entirely on the phone. OTP and bank messages are checked before the classifier, so it can never hide them. You can see what it has learned, or reset it, in **Settings**.
 
 MMS messages go through the same rules, using their subject and text. Pictures from filtered MMS are not kept, and MMS from blocked senders is never downloaded, which saves mobile data.
 
@@ -61,5 +67,4 @@ gradle testDebugUnitTest assembleDebug
 
 ## Roadmap
 
-- On-device spam classifier trained from your "Not spam" / "Block sender" choices
 - Dismissing promotional notifications from selected apps

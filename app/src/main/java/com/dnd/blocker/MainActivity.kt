@@ -20,6 +20,8 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -409,6 +411,7 @@ private fun NewConversationDialog(onDismiss: () -> Unit, onStart: (List<String>)
 
 // ---------------- Filtered / Calls / Settings ----------------
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun FilteredScreen(version: Int, onChanged: () -> Unit) {
     val ctx = LocalContext.current
@@ -431,14 +434,20 @@ private fun FilteredScreen(version: Int, onChanged: () -> Unit) {
                         Text("${f.verdict.lowercase()} · ${f.reason}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
                         Spacer(Modifier.height(4.dp))
                         Text(f.body)
-                        Row {
+                        FlowRow {
                             TextButton(onClick = {
                                 SmsStore.insertInbox(ctx, f.address, f.body, f.date)
                                 db.whitelist(SmsFilter.normalizeNumber(f.address))
+                                Learner.learn(ctx, f.body, isSpam = false)
                                 db.deleteFiltered(f.id); onChanged()
                             }) { Text("Not spam") }
                             TextButton(onClick = {
+                                Learner.learn(ctx, f.body, isSpam = true)
+                                db.deleteFiltered(f.id); onChanged()
+                            }) { Text("Spam") }
+                            TextButton(onClick = {
                                 db.blacklist(SmsFilter.normalizeNumber(f.address))
+                                Learner.learn(ctx, f.body, isSpam = true)
                                 db.deleteFiltered(f.id); onChanged()
                             }) { Text("Block sender") }
                             TextButton(onClick = { db.deleteFiltered(f.id); onChanged() }) { Text("Delete") }
@@ -479,7 +488,10 @@ private fun SettingsScreen(version: Int, requestRole: (String) -> Unit, onChange
     var blockHidden by remember { mutableStateOf(Prefs.blockHidden(ctx)) }
     var blockUnknown by remember { mutableStateOf(Prefs.blockAllUnknown(ctx)) }
 
-    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(
+        Modifier.verticalScroll(rememberScrollState()).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
         Text("Permissions", style = MaterialTheme.typography.titleMedium)
         RoleRow("Default SMS app", smsRole) { requestRole(RoleManager.ROLE_SMS) }
         RoleRow("Call screening (blocks 0940/0941/0942)", callRole) { requestRole(RoleManager.ROLE_CALL_SCREENING) }
@@ -488,6 +500,32 @@ private fun SettingsScreen(version: Int, requestRole: (String) -> Unit, onChange
         Text("Calls", style = MaterialTheme.typography.titleMedium)
         SwitchRow("Block hidden numbers", blockHidden) { blockHidden = it; Prefs.setBlockHidden(ctx, it); onChanged() }
         SwitchRow("Block all numbers not in contacts", blockUnknown) { blockUnknown = it; Prefs.setBlockAllUnknown(ctx, it); onChanged() }
+
+        HorizontalDivider()
+        Text("Spam learning", style = MaterialTheme.typography.titleMedium)
+        var learnVersion by remember { mutableIntStateOf(0) }
+        val model = remember(version, learnVersion) { Learner.model(ctx) }
+        var confirmReset by remember { mutableStateOf(false) }
+        Text(
+            "Learned from ${model.userSpam} spam and ${model.userHam} non-spam messages you marked. " +
+                if (model.canAutoInbox) "It can now also move clearly personal messages to Messages."
+                else "After ${SpamModel.MIN_USER_EXAMPLES} of each, it will also move clearly personal messages to Messages.",
+            style = MaterialTheme.typography.bodySmall
+        )
+        Text(
+            "Everything is learned and stored on this phone only.",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline
+        )
+        OutlinedButton(onClick = { confirmReset = true }) { Text("Reset learning") }
+        if (confirmReset) AlertDialog(
+            onDismissRequest = { confirmReset = false },
+            title = { Text("Reset learning?") },
+            text = { Text("The classifier forgets everything you taught it. Your messages and block lists are kept.") },
+            confirmButton = {
+                TextButton(onClick = { Learner.reset(ctx); confirmReset = false; learnVersion++ }) { Text("Reset") }
+            },
+            dismissButton = { TextButton(onClick = { confirmReset = false }) { Text("Cancel") } }
+        )
 
         HorizontalDivider()
         Text(

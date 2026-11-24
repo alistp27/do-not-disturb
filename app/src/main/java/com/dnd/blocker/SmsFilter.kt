@@ -76,6 +76,7 @@ object SmsFilter {
         isContact: Boolean,
         isWhitelisted: Boolean,
         isBlacklisted: Boolean,
+        model: SpamModel? = null,
     ): FilterResult {
         val number = normalizeNumber(sender)
         if (isContact) return FilterResult(Verdict.INBOX, "contact")
@@ -89,6 +90,16 @@ object SmsFilter {
         val adHits = adKeywords.count { b.contains(it) }
         if (adHits >= 2 || (adHits >= 1 && isServiceLine(number))) {
             return FilterResult(Verdict.SPAM, "ad keywords")
+        }
+
+        val p = model?.spamProbability(body)
+        if (p != null) {
+            val pct = "${(p * 100).toInt()}%"
+            if (p >= SpamModel.SPAM_THRESHOLD) return FilterResult(Verdict.SPAM, "learned spam score $pct")
+            if (p <= SpamModel.HAM_THRESHOLD && model.canAutoInbox) {
+                return FilterResult(Verdict.INBOX, "learned spam score $pct")
+            }
+            return FilterResult(Verdict.QUARANTINE, "unknown sender · spam score $pct")
         }
         return FilterResult(Verdict.QUARANTINE, "unknown sender")
     }

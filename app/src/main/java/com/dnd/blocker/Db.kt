@@ -14,16 +14,56 @@ data class BlockedCall(val id: Long, val number: String, val date: Long, val rea
 
 /** Local database for filtered messages, blocked calls and the user's allow/deny lists. */
 class Db private constructor(ctx: Context) :
-    SQLiteOpenHelper(ctx.applicationContext, "dnd.db", null, 1) {
+    SQLiteOpenHelper(ctx.applicationContext, "dnd.db", null, 2) {
 
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("CREATE TABLE filtered(id INTEGER PRIMARY KEY AUTOINCREMENT, address TEXT, body TEXT, date INTEGER, verdict TEXT, reason TEXT)")
         db.execSQL("CREATE TABLE blocked_calls(id INTEGER PRIMARY KEY AUTOINCREMENT, number TEXT, date INTEGER, reason TEXT)")
         db.execSQL("CREATE TABLE whitelist(number TEXT PRIMARY KEY)")
         db.execSQL("CREATE TABLE blacklist(number TEXT PRIMARY KEY)")
+        createModelTables(db)
     }
 
-    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {}
+    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        if (oldVersion < 2) createModelTables(db)
+    }
+
+    private fun createModelTables(db: SQLiteDatabase) {
+        db.execSQL("CREATE TABLE nb_tokens(token TEXT PRIMARY KEY, spam INTEGER NOT NULL DEFAULT 0, ham INTEGER NOT NULL DEFAULT 0)")
+        db.execSQL("CREATE TABLE nb_docs(id INTEGER PRIMARY KEY CHECK (id = 1), spam INTEGER NOT NULL, ham INTEGER NOT NULL)")
+        db.execSQL("INSERT INTO nb_docs(id, spam, ham) VALUES (1, 0, 0)")
+    }
+
+    /** Adds the user's saved learning on top of a (seeded) model. */
+    fun loadModelInto(m: SpamModel) {
+        readableDatabase.rawQuery("SELECT token, spam, ham FROM nb_tokens", null).use { c ->
+            while (c.moveToNext()) m.addCount(c.getString(0), c.getInt(1), c.getInt(2))
+        }
+        readableDatabase.rawQuery("SELECT spam, ham FROM nb_docs WHERE id=1", null).use { c ->
+            if (c.moveToFirst()) m.addDocs(c.getInt(0), c.getInt(1), fromUser = true)
+        }
+    }
+
+    fun saveTraining(tokens: Set<String>, isSpam: Boolean) {
+        val col = if (isSpam) "spam" else "ham"
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            for (t in tokens) {
+                db.execSQL("INSERT OR IGNORE INTO nb_tokens(token) VALUES (?)", arrayOf(t))
+                db.execSQL("UPDATE nb_tokens SET $col = $col + 1 WHERE token = ?", arrayOf(t))
+            }
+            db.execSQL("UPDATE nb_docs SET $col = $col + 1 WHERE id = 1")
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+    }
+
+    fun resetModel() {
+        writableDatabase.delete("nb_tokens", null, null)
+        writableDatabase.execSQL("UPDATE nb_docs SET spam = 0, ham = 0 WHERE id = 1")
+    }
 
     fun addFiltered(address: String, body: String, date: Long, result: FilterResult) {
         writableDatabase.insert("filtered", null, ContentValues().apply {
