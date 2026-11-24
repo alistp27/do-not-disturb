@@ -19,6 +19,7 @@ import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -351,6 +352,8 @@ fun App(prefillTo: String?, startTab: Int, onPrefillConsumed: () -> Unit) {
     val version = refresh + rememberProviderChanges()
     val resume = rememberResumeTick()
     val fullMode = remember(refresh, resume) { Roles.held(ctx, RoleManager.ROLE_SMS) }
+    val callOff = remember(refresh, resume) { !Roles.held(ctx, RoleManager.ROLE_CALL_SCREENING) }
+    val notifOff = remember(refresh, resume) { !fullMode && !AppRules.accessGranted(ctx) }
     // Tab keys stay fixed (notifications open tabs by key); Messages only exists in full mode.
     val tabs = if (fullMode) listOf(0, 1, 2, 3, 4) else listOf(1, 2, 3, 4)
     if (tab !in tabs) tab = 1
@@ -419,14 +422,15 @@ fun App(prefillTo: String?, startTab: Int, onPrefillConsumed: () -> Unit) {
                 }
             }
         ) { pad ->
-            Box(Modifier.padding(pad).fillMaxSize()) {
-                when (tab) {
+            Column(Modifier.padding(pad).fillMaxSize()) {
+                if ((callOff || notifOff) && tab != 4) SetupWarning(callOff, notifOff) { tab = 4 }
+                Box(Modifier.weight(1f).fillMaxWidth()) { when (tab) {
                     0 -> ThreadsScreen(version, names, requestRole) { openThread = it }
                     1 -> FilteredScreen(version) { refresh++ }
                     2 -> CallsScreen(version) { refresh++ }
                     3 -> AppsScreen(version)
                     else -> SettingsScreen(version, requestRole)
-                }
+                } }
             }
         }
     }
@@ -434,6 +438,20 @@ fun App(prefillTo: String?, startTab: Int, onPrefillConsumed: () -> Unit) {
     if (showNew) NewConversationDialog(onDismiss = { showNew = false }) { addrs ->
         showNew = false
         openThread = OpenThread(Threads.threadIdFor(ctx, addrs), addrs)
+    }
+}
+
+@Composable
+private fun SetupWarning(callOff: Boolean, notifOff: Boolean, onFix: () -> Unit) {
+    Surface(
+        color = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer,
+        modifier = Modifier.fillMaxWidth().padding(12.dp), shape = RoundedCornerShape(12.dp), onClick = onFix
+    ) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(stringResource(R.string.setup_incomplete), style = MaterialTheme.typography.titleSmall)
+            if (callOff) Text(stringResource(R.string.call_off), style = MaterialTheme.typography.bodySmall)
+            if (notifOff) Text(stringResource(R.string.notif_off), style = MaterialTheme.typography.bodySmall)
+        }
     }
 }
 

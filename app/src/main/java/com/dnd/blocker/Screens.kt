@@ -48,7 +48,19 @@ import kotlinx.coroutines.withContext
 
 // ---------------- Helpers ----------------
 
-fun ago(t: Long): String = DateUtils.getRelativeTimeSpanString(t).toString()
+// Uses the app's own language (DateUtils follows the system locale instead).
+@Composable
+fun ago(t: Long): String {
+    val res = LocalContext.current.resources
+    val m = ((System.currentTimeMillis() - t) / 60_000).coerceAtLeast(0)
+    return when {
+        m < 1 -> res.getString(R.string.ago_now)
+        m < 60 -> res.getQuantityString(R.plurals.ago_min, m.toInt(), m.toInt())
+        m < 60 * 24 -> (m / 60).toInt().let { res.getQuantityString(R.plurals.ago_hour, it, it) }
+        m < 60 * 24 * 7 -> (m / 1440).toInt().let { res.getQuantityString(R.plurals.ago_day, it, it) }
+        else -> DateUtils.formatDateTime(null, t, DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_ABBREV_MONTH)
+    }
+}
 
 fun splitAddresses(s: String): List<String> =
     s.split(',', ';', '،').map { it.trim() }.filter { it.isNotEmpty() }
@@ -491,7 +503,7 @@ fun FilteredScreen(version: Int, onChanged: () -> Unit) {
             Modifier.fillMaxWidth().padding(horizontal = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(stringResource(R.string.filtered_count, items.size), style = MaterialTheme.typography.labelLarge)
+            Text(LocalContext.current.resources.getQuantityString(R.plurals.filtered_count, items.size, items.size), style = MaterialTheme.typography.labelLarge)
             TextButton(onClick = { db.clearFiltered(); onChanged() }) { Text(stringResource(R.string.delete_all)) }
         }
         if (items.any { it.source == Db.SOURCE_NOTIFICATION }) Text(

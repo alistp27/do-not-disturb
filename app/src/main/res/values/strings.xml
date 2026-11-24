@@ -53,7 +53,6 @@
     <string name="delete_needs_default">Make this your default SMS app to delete conversations.</string>
 
     <!-- Filtered -->
-    <string name="filtered_count">%1$d ads caught</string>
     <string name="delete_all">Delete all</string>
     <string name="nothing_filtered">No ads caught yet</string>
     <string name="not_spam">Not an ad</string>
@@ -152,4 +151,13 @@
     <string name="donate">Support on Hamibash</string>
     <string name="privacy_note">No internet permission: this app cannot send anything anywhere.</string>
     <string name="listener_label">Tabligh-gir ad blocker</string>
+
+    <string name="ago_now">just now</string>
+    <plurals name="ago_min"><item quantity="one">%d min ago</item><item quantity="other">%d min ago</item></plurals>
+    <plurals name="ago_hour"><item quantity="one">%d h ago</item><item quantity="other">%d h ago</item></plurals>
+    <plurals name="ago_day"><item quantity="one">%d day ago</item><item quantity="other">%d days ago</item></plurals>
+    <plurals name="filtered_count"><item quantity="one">%d ad caught</item><item quantity="other">%d ads caught</item></plurals>
+    <string name="setup_incomplete">Protection is partly off</string>
+    <string name="call_off">Ad calls are not blocked: call screening is off.</string>
+    <string name="notif_off">Ad SMS are not silenced: notification access is off.</string>
 </resources>

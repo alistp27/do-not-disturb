@@ -53,7 +53,6 @@
     <string name="delete_needs_default">برای حذف گفتگوها، این برنامه را برنامه پیش‌فرض پیامک کنید.</string>
 
     <!-- Filtered -->
-    <string name="filtered_count">%1$d تبلیغ گرفته شد</string>
     <string name="delete_all">حذف همه</string>
     <string name="nothing_filtered">هنوز تبلیغی گرفته نشده</string>
     <string name="not_spam">تبلیغ نیست</string>
@@ -152,4 +151,13 @@
     <string name="donate">حمایت در حامی‌باش</string>
     <string name="privacy_note">بدون مجوز اینترنت: این برنامه نمی‌تواند هیچ اطلاعاتی را جایی بفرستد.</string>
     <string name="listener_label">تبلیغ‌گیر</string>
+
+    <string name="ago_now">همین الان</string>
+    <plurals name="ago_min"><item quantity="one">%d دقیقه پیش</item><item quantity="other">%d دقیقه پیش</item></plurals>
+    <plurals name="ago_hour"><item quantity="one">%d ساعت پیش</item><item quantity="other">%d ساعت پیش</item></plurals>
+    <plurals name="ago_day"><item quantity="one">%d روز پیش</item><item quantity="other">%d روز پیش</item></plurals>
+    <plurals name="filtered_count"><item quantity="one">%d تبلیغ گرفته شد</item><item quantity="other">%d تبلیغ گرفته شد</item></plurals>
+    <string name="setup_incomplete">محافظت کامل روشن نیست</string>
+    <string name="call_off">تماس‌های تبلیغاتی مسدود نمی‌شوند: غربالگری تماس خاموش است.</string>
+    <string name="notif_off">پیامک‌های تبلیغاتی بی‌صدا نمی‌شوند: دسترسی به اعلان‌ها خاموش است.</string>
 </resources>
