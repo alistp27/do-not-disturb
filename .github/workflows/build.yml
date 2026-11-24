@@ -18,7 +18,7 @@ jobs:
         with:
           gradle-version: '8.11.1'
       - name: Test and build
-        run: gradle testDebugUnitTest assembleDebug
+        run: gradle testDebugUnitTest assembleDebug assembleRelease
       - uses: actions/upload-artifact@v4
         with:
           name: app-debug

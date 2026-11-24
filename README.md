@@ -73,3 +73,9 @@ In both modes, calls, alarms, navigation, ongoing/progress notifications, OTP co
 - Video, audio and contact-card attachments are received but not displayed.
 - MMS needs mobile data and the carrier's MMS settings (APN) on the phone.
 - Not suitable for Google Play as-is (SMS permission policy); Cafe Bazaar / Myket are fine.
+
+## Releases
+
+Pushing a tag like `v0.2.0` runs the **Release** workflow, which builds an APK signed with the project's release key and attaches it to a GitHub release. The version name comes from the tag.
+
+It needs four repository secrets (Settings → Secrets and variables → Actions): `SIGNING_KEYSTORE_BASE64` (the `.jks` file, base64-encoded), `SIGNING_STORE_PASSWORD`, `SIGNING_KEY_ALIAS` and `SIGNING_KEY_PASSWORD`. Keep a backup of the keystore: if it's lost, users can't update to new versions without uninstalling.
