@@ -73,7 +73,3 @@ In both modes, calls, alarms, navigation, ongoing/progress notifications, OTP co
 - Video, audio and contact-card attachments are received but not displayed.
 - MMS needs mobile data and the carrier's MMS settings (APN) on the phone.
 - Not suitable for Google Play as-is (SMS permission policy); Cafe Bazaar / Myket are fine.
-
-## Roadmap
-
-- Dismissing promotional notifications from selected apps
