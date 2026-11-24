@@ -13,7 +13,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -120,27 +122,90 @@ fun EmptyState(text: String) {
 
 // ---------------- Conversations ----------------
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ThreadsScreen(version: Int, names: NameCache, requestRole: (String) -> Unit, onOpen: (OpenThread) -> Unit) {
     val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
     val isDefault = remember(version) { Roles.held(ctx, RoleManager.ROLE_SMS) }
-    val threads by produceState(emptyList<ThreadInfo>(), version) {
+    var localRefresh by remember { mutableIntStateOf(0) }
+    val threads by produceState(emptyList<ThreadInfo>(), version, localRefresh) {
         value = withContext(Dispatchers.IO) { Threads.list(ctx) }
     }
+    var query by rememberSaveable { mutableStateOf("") }
+    val bodyHits by produceState(emptySet<Long>(), query, version, localRefresh) {
+        val term = query.trim()
+        if (term.length < 2) { value = emptySet(); return@produceState }
+        kotlinx.coroutines.delay(250)
+        value = withContext(Dispatchers.IO) { Threads.searchBodies(ctx, term) }
+    }
+    var selected by remember { mutableStateOf(setOf<Long>()) }
+    var confirmDelete by remember { mutableStateOf(false) }
     val unknown = stringResource(R.string.unknown_contact)
     val picture = stringResource(R.string.picture)
     val mms = stringResource(R.string.mms)
+    val notDefault = stringResource(R.string.delete_needs_default)
+
+    val q = SmsFilter.normalizeDigits(query.trim()).lowercase()
+    val shown = if (q.isEmpty()) threads else threads.filter { t ->
+        t.id in bodyHits ||
+            names.of(t.addresses, unknown).lowercase().contains(q) ||
+            t.addresses.any { SmsFilter.normalizeDigits(it).contains(q) || SmsFilter.normalizeNumber(it).contains(q) } ||
+            t.snippet.lowercase().contains(q)
+    }
+    LaunchedEffect(threads) { selected = selected.filter { id -> threads.any { it.id == id } }.toSet() }
+    if (selected.isNotEmpty()) BackHandler { selected = emptySet() }
+
     Column {
         if (!isDefault) Banner(stringResource(R.string.sms_role_banner), stringResource(R.string.make_default)) {
             requestRole(RoleManager.ROLE_SMS)
         }
+        if (selected.isNotEmpty()) {
+            Surface(color = MaterialTheme.colorScheme.secondaryContainer) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { selected = emptySet() }) { Icon(Icons.Default.Close, stringResource(R.string.cancel)) }
+                    Text(stringResource(R.string.selected_count, selected.size), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+                    IconButton(onClick = {
+                        selected = if (selected.size == shown.size) emptySet() else shown.map { it.id }.toSet()
+                    }) { Icon(Icons.Default.CheckCircle, stringResource(R.string.select_all)) }
+                    IconButton(onClick = {
+                        if (Roles.held(ctx, RoleManager.ROLE_SMS)) confirmDelete = true
+                        else Toast.makeText(ctx, notDefault, Toast.LENGTH_LONG).show()
+                    }) { Icon(Icons.Default.Delete, stringResource(R.string.delete)) }
+                }
+            }
+        } else if (threads.isNotEmpty() || query.isNotEmpty()) {
+            OutlinedTextField(
+                query, { query = it },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                placeholder = { Text(stringResource(R.string.search_conversations)) },
+                leadingIcon = { Icon(Icons.Default.Search, null) },
+                trailingIcon = {
+                    if (query.isNotEmpty()) IconButton(onClick = { query = "" }) { Icon(Icons.Default.Clear, stringResource(R.string.clear)) }
+                },
+                singleLine = true,
+                shape = RoundedCornerShape(28.dp),
+            )
+        }
         if (threads.isEmpty()) EmptyState(stringResource(R.string.no_conversations))
+        else if (shown.isEmpty()) EmptyState(stringResource(R.string.no_results))
         LazyColumn {
-            items(threads, key = { it.id }) { t ->
+            items(shown, key = { it.id }) { t ->
                 val weight = if (t.unread) FontWeight.Bold else FontWeight.Normal
+                val isSel = t.id in selected
+                val toggle = { selected = if (isSel) selected - t.id else selected + t.id }
                 ListItem(
-                    modifier = Modifier.clickable { onOpen(OpenThread(t.id, t.addresses)) },
-                    leadingContent = { Avatar(names.of(t.addresses, unknown)) },
+                    modifier = Modifier.combinedClickable(
+                        onClick = { if (selected.isNotEmpty()) toggle() else onOpen(OpenThread(t.id, t.addresses)) },
+                        onLongClick = toggle,
+                    ),
+                    colors = if (isSel) ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                    else ListItemDefaults.colors(),
+                    leadingContent = {
+                        if (isSel) Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(40.dp)) {
+                            Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.onPrimary) }
+                        } else Avatar(names.of(t.addresses, unknown))
+                    },
                     headlineContent = {
                         Text(names.of(t.addresses, unknown), fontWeight = weight, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     },
@@ -153,6 +218,29 @@ fun ThreadsScreen(version: Int, names: NameCache, requestRole: (String) -> Unit,
             }
         }
     }
+
+    if (confirmDelete) AlertDialog(
+        onDismissRequest = { confirmDelete = false },
+        title = {
+            Text(
+                if (selected.size == 1) stringResource(R.string.delete_conversation_title)
+                else stringResource(R.string.delete_conversations_title, selected.size)
+            )
+        },
+        text = { Text(stringResource(R.string.delete_conversations_body)) },
+        confirmButton = {
+            TextButton(onClick = {
+                val ids = selected
+                confirmDelete = false
+                selected = emptySet()
+                scope.launch {
+                    withContext(Dispatchers.IO) { Threads.delete(ctx, ids) }
+                    localRefresh++
+                }
+            }) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
+        },
+        dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.cancel)) } },
+    )
 }
 
 @Composable

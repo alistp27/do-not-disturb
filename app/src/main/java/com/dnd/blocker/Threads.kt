@@ -145,6 +145,36 @@ object Threads {
         runCatching { ctx.contentResolver.update(Telephony.Mms.CONTENT_URI, read, where, args) }
     }
 
+    /** Thread ids whose SMS or MMS text contains [q]. */
+    fun searchBodies(ctx: Context, q: String): Set<Long> {
+        if (q.isBlank()) return emptySet()
+        val cr = ctx.contentResolver
+        val esc = q.replace("!", "!!").replace("%", "!%").replace("_", "!_")
+        val like = arrayOf("%$esc%")
+        val out = HashSet<Long>()
+        runCatching {
+            cr.query(Telephony.Sms.CONTENT_URI, arrayOf(Telephony.Sms.THREAD_ID), "${Telephony.Sms.BODY} LIKE ? ESCAPE '!'", like, null)
+                ?.use { while (it.moveToNext()) out += it.getLong(0) }
+        }
+        runCatching {
+            val mids = HashSet<Long>()
+            cr.query(MMS_PARTS, arrayOf("mid"), "ct='text/plain' AND text LIKE ? ESCAPE '!'", like, null)
+                ?.use { while (it.moveToNext()) mids += it.getLong(0) }
+            if (mids.isNotEmpty()) cr.query(
+                Telephony.Mms.CONTENT_URI, arrayOf(Telephony.Mms.THREAD_ID),
+                "${Telephony.Mms._ID} IN (${mids.joinToString(",")})", null, null
+            )?.use { while (it.moveToNext()) out += it.getLong(0) }
+        }
+        return out
+    }
+
+    /** Deletes whole conversations. Only works while this is the default SMS app. */
+    fun delete(ctx: Context, threadIds: Collection<Long>): Int = threadIds.sumOf { id ->
+        runCatching {
+            ctx.contentResolver.delete(Uri.parse("content://mms-sms/conversations/$id"), null, null)
+        }.getOrDefault(0)
+    }
+
     fun threadIdFor(ctx: Context, addresses: List<String>): Long =
         runCatching { Telephony.Threads.getOrCreateThreadId(ctx, addresses.toSet()) }.getOrDefault(-1L)
 }

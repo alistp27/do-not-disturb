@@ -36,6 +36,15 @@
     <string name="status_failed">Failed</string>
     <string name="phone_numbers">Phone numbers, comma separated</string>
     <string name="start">Start</string>
+    <string name="search_conversations">Search conversations</string>
+    <string name="clear">Clear</string>
+    <string name="no_results">No matching conversations</string>
+    <string name="selected_count">%1$d selected</string>
+    <string name="select_all">Select all</string>
+    <string name="delete_conversation_title">Delete this conversation?</string>
+    <string name="delete_conversations_title">Delete %1$d conversations?</string>
+    <string name="delete_conversations_body">All messages and pictures in them will be removed from this phone. This can\'t be undone.</string>
+    <string name="delete_needs_default">Make this your default SMS app to delete conversations.</string>
 
     <!-- Filtered -->
     <string name="filtered_count">%1$d filtered</string>
