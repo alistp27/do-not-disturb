@@ -2,30 +2,50 @@ package com.dnd.blocker
 
 import android.Manifest
 import android.app.role.RoleManager
+import android.content.Context
 import android.content.Intent
+import android.database.ContentObserver
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.text.format.DateUtils
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+data class OpenThread(val id: Long, val addresses: List<String>)
 
 class MainActivity : ComponentActivity() {
     private var prefillTo by mutableStateOf<String?>(null)
@@ -64,10 +84,37 @@ private fun runtimePermissions(): Array<String> = buildList {
     add(Manifest.permission.READ_SMS)
     add(Manifest.permission.SEND_SMS)
     add(Manifest.permission.RECEIVE_SMS)
+    add(Manifest.permission.RECEIVE_MMS)
     if (Build.VERSION.SDK_INT >= 33) add(Manifest.permission.POST_NOTIFICATIONS)
 }.toTypedArray()
 
 private fun ago(t: Long): String = DateUtils.getRelativeTimeSpanString(t).toString()
+
+private fun splitAddresses(s: String): List<String> =
+    s.split(',', ';').map { it.trim() }.filter { it.isNotEmpty() }
+
+/** Bumps a counter whenever the system SMS/MMS database changes, so screens refresh live. */
+@Composable
+private fun rememberProviderChanges(): Int {
+    val ctx = LocalContext.current
+    var tick by remember { mutableIntStateOf(0) }
+    DisposableEffect(Unit) {
+        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) { tick++ }
+        }
+        runCatching { ctx.contentResolver.registerContentObserver(Uri.parse("content://mms-sms/"), true, observer) }
+        onDispose { ctx.contentResolver.unregisterContentObserver(observer) }
+    }
+    return tick
+}
+
+/** Caches contact names so lists don't hit the contacts DB on every recomposition. */
+private class NameCache(private val ctx: Context) {
+    private val cache = HashMap<String, String>()
+    fun of(address: String): String = cache.getOrPut(address) { Contacts.name(ctx, address) ?: address }
+    fun of(addresses: List<String>): String =
+        if (addresses.isEmpty()) "(unknown)" else addresses.joinToString(", ") { of(it) }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,9 +122,12 @@ fun App(prefillTo: String?, startTab: Int, onPrefillConsumed: () -> Unit) {
     val ctx = LocalContext.current
     var tab by rememberSaveable { mutableIntStateOf(startTab) }
     var refresh by remember { mutableIntStateOf(0) }
-    var composeTo by remember { mutableStateOf<String?>(null) }
+    var openThread by remember { mutableStateOf<OpenThread?>(null) }
+    var showNew by remember { mutableStateOf(false) }
+    val names = remember { NameCache(ctx) }
+    val version = refresh + rememberProviderChanges()
 
-    LaunchedEffect(startTab) { tab = startTab }
+    LaunchedEffect(startTab) { tab = startTab; openThread = null }
 
     val permLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -88,7 +138,11 @@ fun App(prefillTo: String?, startTab: Int, onPrefillConsumed: () -> Unit) {
 
     LaunchedEffect(Unit) { permLauncher.launch(runtimePermissions()) }
     LaunchedEffect(prefillTo) {
-        if (prefillTo != null) { composeTo = prefillTo; onPrefillConsumed() }
+        val to = prefillTo ?: return@LaunchedEffect
+        val addrs = splitAddresses(to)
+        if (addrs.isEmpty()) showNew = true
+        else openThread = OpenThread(Threads.threadIdFor(ctx, addrs), addrs)
+        onPrefillConsumed()
     }
 
     val requestRole: (String) -> Unit = { role ->
@@ -96,51 +150,49 @@ fun App(prefillTo: String?, startTab: Int, onPrefillConsumed: () -> Unit) {
         if (i != null) roleLauncher.launch(i) else refresh++
     }
 
-    val titles = listOf("Inbox", "Filtered", "Calls", "Settings")
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(titles[tab]) },
-                actions = {
-                    IconButton(onClick = { refresh++ }) { Icon(Icons.Default.Refresh, "Refresh") }
+    val current = openThread
+    if (current != null) {
+        ConversationScreen(current, version, names, onBack = { openThread = null; refresh++ })
+    } else {
+        val titles = listOf("Messages", "Filtered", "Calls", "Settings")
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text(titles[tab]) },
+                    actions = { IconButton(onClick = { refresh++ }) { Icon(Icons.Default.Refresh, "Refresh") } }
+                )
+            },
+            bottomBar = {
+                NavigationBar {
+                    val icons = listOf(Icons.Default.Email, Icons.Default.Warning, Icons.Default.Call, Icons.Default.Settings)
+                    titles.forEachIndexed { i, t ->
+                        NavigationBarItem(
+                            selected = tab == i, onClick = { tab = i; refresh++ },
+                            icon = { Icon(icons[i], t) }, label = { Text(t) }
+                        )
+                    }
                 }
-            )
-        },
-        bottomBar = {
-            NavigationBar {
-                val icons = listOf(Icons.Default.Email, Icons.Default.Warning, Icons.Default.Call, Icons.Default.Settings)
-                titles.forEachIndexed { i, t ->
-                    NavigationBarItem(
-                        selected = tab == i, onClick = { tab = i; refresh++ },
-                        icon = { Icon(icons[i], t) }, label = { Text(t) }
-                    )
+            },
+            floatingActionButton = {
+                if (tab == 0) FloatingActionButton(onClick = { showNew = true }) {
+                    Icon(Icons.Default.Add, "New conversation")
                 }
             }
-        },
-        floatingActionButton = {
-            if (tab == 0) FloatingActionButton(onClick = { composeTo = "" }) {
-                Icon(Icons.Default.Add, "New message")
-            }
-        }
-    ) { pad ->
-        Box(Modifier.padding(pad).fillMaxSize()) {
-            when (tab) {
-                0 -> InboxScreen(refresh, requestRole) { composeTo = it }
-                1 -> FilteredScreen(refresh) { refresh++ }
-                2 -> CallsScreen(refresh) { refresh++ }
-                else -> SettingsScreen(refresh, requestRole) { refresh++ }
+        ) { pad ->
+            Box(Modifier.padding(pad).fillMaxSize()) {
+                when (tab) {
+                    0 -> ThreadsScreen(version, names, requestRole) { openThread = it }
+                    1 -> FilteredScreen(version) { refresh++ }
+                    2 -> CallsScreen(version) { refresh++ }
+                    else -> SettingsScreen(version, requestRole) { refresh++ }
+                }
             }
         }
     }
 
-    composeTo?.let { to ->
-        ComposeDialog(to, onDismiss = { composeTo = null }) { address, body ->
-            runCatching { SmsStore.send(ctx, address, body) }
-                .onSuccess { Toast.makeText(ctx, "Sent", Toast.LENGTH_SHORT).show() }
-                .onFailure { Toast.makeText(ctx, "Failed: ${it.message}", Toast.LENGTH_LONG).show() }
-            composeTo = null
-            refresh++
-        }
+    if (showNew) NewConversationDialog(onDismiss = { showNew = false }) { addrs ->
+        showNew = false
+        openThread = OpenThread(Threads.threadIdFor(ctx, addrs), addrs)
     }
 }
 
@@ -162,24 +214,34 @@ private fun EmptyState(text: String) {
     }
 }
 
+// ---------------- Conversations ----------------
+
 @Composable
-private fun InboxScreen(refresh: Int, requestRole: (String) -> Unit, onReply: (String) -> Unit) {
+private fun ThreadsScreen(version: Int, names: NameCache, requestRole: (String) -> Unit, onOpen: (OpenThread) -> Unit) {
     val ctx = LocalContext.current
-    val isDefault = remember(refresh) { Roles.held(ctx, RoleManager.ROLE_SMS) }
-    val messages = remember(refresh) { SmsStore.recent(ctx) }
+    val isDefault = remember(version) { Roles.held(ctx, RoleManager.ROLE_SMS) }
+    val threads by produceState(emptyList<ThreadInfo>(), version) {
+        value = withContext(Dispatchers.IO) { Threads.list(ctx) }
+    }
     Column {
         if (!isDefault) RoleBanner(
             "To filter spam SMS, this app must be your default SMS app.",
             "Make default SMS app"
         ) { requestRole(RoleManager.ROLE_SMS) }
-        if (messages.isEmpty()) EmptyState("No messages")
+        if (threads.isEmpty()) EmptyState("No conversations")
         LazyColumn {
-            items(messages, key = { it.id }) { m ->
+            items(threads, key = { it.id }) { t ->
+                val weight = if (t.unread) FontWeight.Bold else FontWeight.Normal
                 ListItem(
-                    modifier = Modifier.clickable { onReply(m.address) },
-                    headlineContent = { Text(m.address, fontWeight = FontWeight.SemiBold) },
-                    supportingContent = { Text(m.body, maxLines = 3, overflow = TextOverflow.Ellipsis) },
-                    trailingContent = { Text((if (m.type == 2) "Sent · " else "") + ago(m.date), style = MaterialTheme.typography.labelSmall) }
+                    modifier = Modifier.clickable { onOpen(OpenThread(t.id, t.addresses)) },
+                    headlineContent = {
+                        Text(names.of(t.addresses), fontWeight = weight, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    },
+                    supportingContent = {
+                        val snippet = t.snippet.ifBlank { if (t.hasAttachment) "📷 Picture" else "MMS" }
+                        Text(snippet, fontWeight = weight, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    },
+                    trailingContent = { Text(ago(t.date), style = MaterialTheme.typography.labelSmall) }
                 )
                 HorizontalDivider()
             }
@@ -187,11 +249,171 @@ private fun InboxScreen(refresh: Int, requestRole: (String) -> Unit, onReply: (S
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun FilteredScreen(refresh: Int, onChanged: () -> Unit) {
+private fun ConversationScreen(thread: OpenThread, version: Int, names: NameCache, onBack: () -> Unit) {
+    val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var localRefresh by remember { mutableIntStateOf(0) }
+    var threadId by remember(thread) { mutableLongStateOf(thread.id) }
+    var text by rememberSaveable { mutableStateOf("") }
+    var image by remember { mutableStateOf<Uri?>(null) }
+    var sending by remember { mutableStateOf(false) }
+    val isGroup = thread.addresses.size > 1
+
+    BackHandler(onBack = onBack)
+
+    val messages by produceState(emptyList<ChatMessage>(), threadId, version, localRefresh) {
+        value = withContext(Dispatchers.IO) { Threads.messages(ctx, threadId) }
+    }
+    LaunchedEffect(threadId, messages.size) {
+        withContext(Dispatchers.IO) { Threads.markRead(ctx, threadId) }
+    }
+
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) image = uri
+    }
+
+    fun send() {
+        val body = text.trim()
+        val img = image
+        if (body.isEmpty() && img == null) return
+        sending = true
+        scope.launch {
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    if (img != null || isGroup) MmsStore.send(ctx, thread.addresses, body, img)
+                    else SmsStore.send(ctx, thread.addresses.first(), body)
+                    if (threadId <= 0) threadId = Threads.threadIdFor(ctx, thread.addresses)
+                }
+            }
+            sending = false
+            result.onSuccess { text = ""; image = null }
+                .onFailure { Toast.makeText(ctx, "Not sent: ${it.message}", Toast.LENGTH_LONG).show() }
+            localRefresh++
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(names.of(thread.addresses), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
+                }
+            )
+        },
+        bottomBar = {
+            Column(Modifier.imePadding()) {
+                if (image != null) Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("📷 Picture attached", Modifier.weight(1f), style = MaterialTheme.typography.labelLarge)
+                    TextButton(onClick = { image = null }) { Text("Remove") }
+                }
+                Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = {
+                        picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                    }) { Icon(Icons.Default.Add, "Attach picture") }
+                    OutlinedTextField(
+                        value = text, onValueChange = { text = it },
+                        modifier = Modifier.weight(1f),
+                        placeholder = { Text(if (image != null || isGroup) "MMS message" else "Text message") },
+                        maxLines = 5
+                    )
+                    IconButton(enabled = !sending && (text.isNotBlank() || image != null), onClick = { send() }) {
+                        if (sending) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                        else Icon(Icons.AutoMirrored.Filled.Send, "Send")
+                    }
+                }
+            }
+        }
+    ) { pad ->
+        if (messages.isEmpty()) {
+            Box(Modifier.padding(pad)) { EmptyState("No messages yet") }
+        } else {
+            LazyColumn(
+                Modifier.padding(pad).fillMaxSize(),
+                reverseLayout = true,
+                contentPadding = PaddingValues(12.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                items(messages.asReversed(), key = { it.key }) { m ->
+                    MessageBubble(m, if (isGroup && m.incoming) names.of(m.address) else null)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MessageBubble(m: ChatMessage, senderName: String?) {
+    val bg = if (m.incoming) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.primaryContainer
+    Column(
+        Modifier.fillMaxWidth(),
+        horizontalAlignment = if (m.incoming) Alignment.Start else Alignment.End
+    ) {
+        Surface(color = bg, shape = RoundedCornerShape(16.dp), modifier = Modifier.widthIn(max = 300.dp)) {
+            Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                senderName?.let { Text(it, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold) }
+                m.images.forEach { MmsImage(it) }
+                if (m.text.isNotBlank()) Text(m.text)
+            }
+        }
+        Text(
+            listOfNotNull(ago(m.date), m.status).joinToString(" · "),
+            style = MaterialTheme.typography.labelSmall,
+            color = if (m.status == "Failed") MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+        )
+    }
+}
+
+@Composable
+private fun MmsImage(uri: Uri) {
+    val ctx = LocalContext.current
+    val bitmap by produceState<ImageBitmap?>(null, uri) {
+        value = withContext(Dispatchers.IO) {
+            runCatching { MmsStore.decodeScaled(ctx, uri, 720)?.asImageBitmap() }.getOrNull()
+        }
+    }
+    bitmap?.let {
+        Image(
+            it, contentDescription = "Picture",
+            modifier = Modifier.widthIn(max = 260.dp).heightIn(max = 340.dp).clip(RoundedCornerShape(10.dp)),
+            contentScale = ContentScale.Fit
+        )
+    }
+}
+
+@Composable
+private fun NewConversationDialog(onDismiss: () -> Unit, onStart: (List<String>) -> Unit) {
+    var to by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("New conversation") },
+        text = {
+            OutlinedTextField(
+                to, { to = it },
+                label = { Text("Phone number(s), comma separated") },
+                singleLine = true
+            )
+        },
+        confirmButton = {
+            TextButton(enabled = splitAddresses(to).isNotEmpty(), onClick = { onStart(splitAddresses(to)) }) { Text("Start") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
+// ---------------- Filtered / Calls / Settings ----------------
+
+@Composable
+private fun FilteredScreen(version: Int, onChanged: () -> Unit) {
     val ctx = LocalContext.current
     val db = remember { Db.get(ctx) }
-    val items = remember(refresh) { db.filtered() }
+    val items = remember(version) { db.filtered() }
     Column {
         if (items.isNotEmpty()) Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("${items.size} filtered", style = MaterialTheme.typography.labelLarge)
@@ -229,10 +451,10 @@ private fun FilteredScreen(refresh: Int, onChanged: () -> Unit) {
 }
 
 @Composable
-private fun CallsScreen(refresh: Int, onChanged: () -> Unit) {
+private fun CallsScreen(version: Int, onChanged: () -> Unit) {
     val ctx = LocalContext.current
     val db = remember { Db.get(ctx) }
-    val calls = remember(refresh) { db.blockedCalls() }
+    val calls = remember(version) { db.blockedCalls() }
     Column {
         if (calls.isNotEmpty()) TextButton(onClick = { db.clearBlockedCalls(); onChanged() }, modifier = Modifier.padding(horizontal = 4.dp)) { Text("Clear log") }
         if (calls.isEmpty()) EmptyState("No calls blocked yet")
@@ -250,10 +472,10 @@ private fun CallsScreen(refresh: Int, onChanged: () -> Unit) {
 }
 
 @Composable
-private fun SettingsScreen(refresh: Int, requestRole: (String) -> Unit, onChanged: () -> Unit) {
+private fun SettingsScreen(version: Int, requestRole: (String) -> Unit, onChanged: () -> Unit) {
     val ctx = LocalContext.current
-    val smsRole = remember(refresh) { Roles.held(ctx, RoleManager.ROLE_SMS) }
-    val callRole = remember(refresh) { Roles.held(ctx, RoleManager.ROLE_CALL_SCREENING) }
+    val smsRole = remember(version) { Roles.held(ctx, RoleManager.ROLE_SMS) }
+    val callRole = remember(version) { Roles.held(ctx, RoleManager.ROLE_CALL_SCREENING) }
     var blockHidden by remember { mutableStateOf(Prefs.blockHidden(ctx)) }
     var blockUnknown by remember { mutableStateOf(Prefs.blockAllUnknown(ctx)) }
 
@@ -269,7 +491,7 @@ private fun SettingsScreen(refresh: Int, requestRole: (String) -> Unit, onChange
 
         HorizontalDivider()
         Text(
-            "SMS from contacts, OTP codes and bank messages go to the inbox. " +
+            "SMS and MMS from contacts, OTP codes and bank messages go to Messages. " +
                 "Ads (with \"لغو11\" etc.) and unknown senders go to Filtered, where nothing is lost.",
             style = MaterialTheme.typography.bodySmall
         )
@@ -291,24 +513,4 @@ private fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Un
         Text(label, Modifier.weight(1f))
         Switch(checked = checked, onCheckedChange = onChange)
     }
-}
-
-@Composable
-private fun ComposeDialog(initialTo: String, onDismiss: () -> Unit, onSend: (String, String) -> Unit) {
-    var to by remember { mutableStateOf(initialTo) }
-    var body by remember { mutableStateOf("") }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("New message") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(to, { to = it }, label = { Text("To") }, singleLine = true)
-                OutlinedTextField(body, { body = it }, label = { Text("Message") }, minLines = 3)
-            }
-        },
-        confirmButton = {
-            TextButton(enabled = to.isNotBlank() && body.isNotBlank(), onClick = { onSend(to.trim(), body) }) { Text("Send") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
-    )
 }

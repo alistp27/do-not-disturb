@@ -25,6 +25,8 @@ Each incoming message is checked in this order; the first match wins:
 | 7 | Ad keywords (`تخفیف`, `جشنواره`, links…) | Filtered (spam) |
 | 8 | Anything else | Filtered (quarantine) |
 
+MMS messages go through the same rules, using their subject and text. Pictures from filtered MMS are not kept, and MMS from blocked senders is never downloaded, which saves mobile data.
+
 Nothing is deleted automatically. Filtered messages wait in the **Filtered** tab, where you can mark them **Not spam** (moves to inbox and trusts the sender) or **Block sender**. Persian and Arabic digits are normalized before matching.
 
 The filter rules live in [`SmsFilter.kt`](app/src/main/java/com/dnd/blocker/SmsFilter.kt) and are covered by unit tests in [`SmsFilterTest.kt`](app/src/test/java/com/dnd/blocker/SmsFilterTest.kt).
@@ -44,14 +46,20 @@ gradle testDebugUnitTest assembleDebug
 1. Allow contacts, SMS and notification permissions.
 2. In **Settings**, enable **Default SMS app** and **Call screening**.
 
-## Known limitations (v0.1)
+## Messaging
 
-- MMS is not supported yet.
-- The inbox is a flat list, not grouped into conversations.
+- **Conversations**: the Messages tab lists threads (with contact names and unread state); tap one for a chat view that updates live.
+- **MMS**: receives MMS with text and pictures, and sends pictures (shrunk to under ~280 KB so carriers accept them). Messages to several people are sent as group MMS.
+- The app includes its own MMS PDU encoder/decoder ([`MmsPdu.kt`](app/src/main/java/com/dnd/blocker/MmsPdu.kt)), because Android has no public one; it is covered by [`MmsPduTest.kt`](app/src/test/java/com/dnd/blocker/MmsPduTest.kt).
+
+## Known limitations
+
+- Group MMS you *receive* appears in a thread with the sender only, not the whole group.
+- Video, audio and contact-card attachments are received but not displayed.
+- MMS needs mobile data and the carrier's MMS settings (APN) on the phone.
 - Not suitable for Google Play as-is (SMS permission policy); Cafe Bazaar / Myket are fine.
 
 ## Roadmap
 
-- Conversation threads and MMS
 - On-device spam classifier trained from your "Not spam" / "Block sender" choices
 - Dismissing promotional notifications from selected apps

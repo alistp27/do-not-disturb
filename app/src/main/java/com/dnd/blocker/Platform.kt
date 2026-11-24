@@ -18,8 +18,6 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 
-data class Sms(val id: Long, val address: String, val body: String, val date: Long, val type: Int)
-
 fun Context.hasPermission(p: String) =
     ContextCompat.checkSelfPermission(this, p) == PackageManager.PERMISSION_GRANTED
 
@@ -32,6 +30,17 @@ object Contacts {
                 ?.use { it.count > 0 } ?: false
         } catch (e: Exception) {
             false
+        }
+    }
+
+    fun name(ctx: Context, number: String?): String? {
+        if (number.isNullOrBlank() || !ctx.hasPermission(Manifest.permission.READ_CONTACTS)) return null
+        val uri = Uri.withAppendedPath(ContactsContract.PhoneLookup.CONTENT_FILTER_URI, Uri.encode(number))
+        return try {
+            ctx.contentResolver.query(uri, arrayOf(ContactsContract.PhoneLookup.DISPLAY_NAME), null, null, null)
+                ?.use { if (it.moveToFirst()) it.getString(0) else null }
+        } catch (e: Exception) {
+            null
         }
     }
 }
@@ -55,24 +64,6 @@ object Roles {
 }
 
 object SmsStore {
-    fun recent(ctx: Context, limit: Int = 300): List<Sms> {
-        val out = mutableListOf<Sms>()
-        try {
-            ctx.contentResolver.query(
-                Telephony.Sms.CONTENT_URI,
-                arrayOf(Telephony.Sms._ID, Telephony.Sms.ADDRESS, Telephony.Sms.BODY, Telephony.Sms.DATE, Telephony.Sms.TYPE),
-                null, null, "${Telephony.Sms.DATE} DESC"
-            )?.use { c ->
-                while (c.moveToNext() && out.size < limit) {
-                    out += Sms(c.getLong(0), c.getString(1) ?: "", c.getString(2) ?: "", c.getLong(3), c.getInt(4))
-                }
-            }
-        } catch (e: SecurityException) {
-            // No READ_SMS permission yet.
-        }
-        return out
-    }
-
     fun insertInbox(ctx: Context, address: String, body: String, date: Long) {
         ctx.contentResolver.insert(Telephony.Sms.Inbox.CONTENT_URI, ContentValues().apply {
             put(Telephony.Sms.ADDRESS, address); put(Telephony.Sms.BODY, body)
@@ -160,6 +151,27 @@ object MessageRouter {
             Notifier.message(ctx, address, body)
         } else {
             db.addFiltered(address, body, date, result)
+            Notifier.filtered(ctx, db.filteredCount())
+        }
+    }
+
+    fun routeMms(ctx: Context, m: MmsMessage) {
+        val db = Db.get(ctx)
+        val from = m.from ?: ""
+        val text = listOfNotNull(m.subject, m.text()).filter { it.isNotBlank() }.joinToString("\n")
+        val result = SmsFilter.classify(
+            from, text,
+            isContact = Contacts.isContact(ctx, from),
+            isWhitelisted = db.isWhitelisted(SmsFilter.normalizeNumber(from)),
+            isBlacklisted = db.isBlacklisted(SmsFilter.normalizeNumber(from)),
+        )
+        if (result.verdict == Verdict.INBOX) {
+            MmsStore.persistIncoming(ctx, m)
+            Notifier.message(ctx, from, text.ifBlank { "[MMS]" })
+        } else {
+            val attachments = m.parts.count { it.isImage }
+            val note = if (attachments > 0) "\n[+$attachments image(s) not kept]" else ""
+            db.addFiltered(from, "[MMS] $text$note", System.currentTimeMillis(), result)
             Notifier.filtered(ctx, db.filteredCount())
         }
     }

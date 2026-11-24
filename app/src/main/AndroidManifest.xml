@@ -22,7 +22,8 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:launchMode="singleTop">
+            android:launchMode="singleTop"
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -72,6 +73,22 @@
                 <data android:scheme="mmsto" />
             </intent-filter>
         </service>
+
+        <!-- Results of MMS downloads/sends from the system MMS service -->
+        <receiver
+            android:name=".MmsResultReceiver"
+            android:exported="false" />
+
+        <!-- Shares MMS PDU files with the system MMS service -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.mmsfiles"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/mms_paths" />
+        </provider>
 
         <service
             android:name=".SpamCallScreeningService"

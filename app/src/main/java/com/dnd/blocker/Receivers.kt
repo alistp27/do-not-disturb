@@ -30,11 +30,6 @@ class SmsDeliverReceiver : BroadcastReceiver() {
     }
 }
 
-/** Required for the default SMS role. MMS is not supported yet. */
-class MmsReceiver : BroadcastReceiver() {
-    override fun onReceive(context: Context, intent: Intent) {}
-}
-
 /** Required for the default SMS role: "reply with message" when rejecting a call. */
 class HeadlessSmsSendService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
