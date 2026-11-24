@@ -22,8 +22,11 @@ jobs:
       - name: Check the app has no internet permission
         run: |
           AAPT=$(ls "$ANDROID_HOME"/build-tools/*/aapt | sort -V | tail -1)
+          test -x "$AAPT" || { echo "::error::aapt not found"; exit 1; }
           for apk in app/build/outputs/apk/*/*.apk; do
-            if "$AAPT" dump permissions "$apk" | grep "android.permission.INTERNET"; then
+            "$AAPT" dump permissions "$apk" > perms.txt
+            cat perms.txt
+            if grep -q "android.permission.INTERNET" perms.txt; then
               echo "::error::$apk requests internet access. Tabligh-gir must stay offline."
               exit 1
             fi
