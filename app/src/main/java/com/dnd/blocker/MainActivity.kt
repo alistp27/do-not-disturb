@@ -40,6 +40,10 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.core.graphics.drawable.toBitmap
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -156,7 +160,7 @@ fun App(prefillTo: String?, startTab: Int, onPrefillConsumed: () -> Unit) {
     if (current != null) {
         ConversationScreen(current, version, names, onBack = { openThread = null; refresh++ })
     } else {
-        val titles = listOf("Messages", "Filtered", "Calls", "Settings")
+        val titles = listOf("Messages", "Filtered", "Calls", "Apps", "Settings")
         Scaffold(
             topBar = {
                 TopAppBar(
@@ -166,7 +170,7 @@ fun App(prefillTo: String?, startTab: Int, onPrefillConsumed: () -> Unit) {
             },
             bottomBar = {
                 NavigationBar {
-                    val icons = listOf(Icons.Default.Email, Icons.Default.Warning, Icons.Default.Call, Icons.Default.Settings)
+                    val icons = listOf(Icons.Default.Email, Icons.Default.Warning, Icons.Default.Call, Icons.Default.Notifications, Icons.Default.Settings)
                     titles.forEachIndexed { i, t ->
                         NavigationBarItem(
                             selected = tab == i, onClick = { tab = i; refresh++ },
@@ -186,6 +190,7 @@ fun App(prefillTo: String?, startTab: Int, onPrefillConsumed: () -> Unit) {
                     0 -> ThreadsScreen(version, names, requestRole) { openThread = it }
                     1 -> FilteredScreen(version) { refresh++ }
                     2 -> CallsScreen(version) { refresh++ }
+                    3 -> AppsScreen(version)
                     else -> SettingsScreen(version, requestRole) { refresh++ }
                 }
             }
@@ -475,6 +480,138 @@ private fun CallsScreen(version: Int, onChanged: () -> Unit) {
                     trailingContent = { Text(ago(c.date), style = MaterialTheme.typography.labelSmall) }
                 )
                 HorizontalDivider()
+            }
+        }
+    }
+}
+
+// ---------------- Apps (promotional notifications) ----------------
+
+@Composable
+private fun AppsScreen(version: Int) {
+    val ctx = LocalContext.current
+    val owner = LocalLifecycleOwner.current
+    var resumeTick by remember { mutableIntStateOf(0) }
+    DisposableEffect(owner) {
+        val obs = LifecycleEventObserver { _, e -> if (e == Lifecycle.Event.ON_RESUME) resumeTick++ }
+        owner.lifecycle.addObserver(obs)
+        onDispose { owner.lifecycle.removeObserver(obs) }
+    }
+    val granted = remember(version, resumeTick) { AppRules.accessGranted(ctx) }
+    var showLog by rememberSaveable { mutableStateOf(false) }
+    var logVersion by remember { mutableIntStateOf(0) }
+    val dismissed = remember(version, resumeTick, logVersion) { Db.get(ctx).dismissed() }
+
+    Column {
+        if (!granted) RoleBanner(
+            "To dismiss promotional notifications, allow notification access for this app.",
+            "Allow notification access"
+        ) { AppRules.openAccessSettings(ctx) }
+        Row(Modifier.padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(selected = !showLog, onClick = { showLog = false }, label = { Text("Apps") })
+            FilterChip(selected = showLog, onClick = { showLog = true }, label = { Text("Dismissed (${dismissed.size})") })
+        }
+        if (showLog) DismissedList(dismissed) { logVersion++ } else AppList()
+    }
+}
+
+@Composable
+private fun AppList() {
+    val ctx = LocalContext.current
+    var rules by remember { mutableStateOf(AppRules.all(ctx)) }
+    var query by rememberSaveable { mutableStateOf("") }
+    val apps by produceState<List<AppEntry>?>(null) {
+        value = withContext(Dispatchers.IO) {
+            val selected = AppRules.all(ctx)
+            // Apps already selected go first; the order is fixed so rows don't jump when toggled.
+            AppRules.launchableApps(ctx).sortedBy { if (it.pkg in selected) 0 else 1 }
+        }
+    }
+    Column {
+        Text(
+            "Promos: hides ads and offers only. All: hides every notification except calls, alarms, OTP codes and bank alerts.",
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+        )
+        OutlinedTextField(
+            query, { query = it },
+            placeholder = { Text("Search apps") }, singleLine = true,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)
+        )
+        val list = apps
+        if (list == null) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+        } else {
+            LazyColumn {
+                items(list.filter { query.isBlank() || it.label.contains(query, ignoreCase = true) }, key = { it.pkg }) { app ->
+                    AppRow(app, rules[app.pkg]) { mode ->
+                        AppRules.set(ctx, app.pkg, mode)
+                        rules = AppRules.all(ctx)
+                    }
+                    HorizontalDivider()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AppRow(app: AppEntry, mode: AppMode?, onMode: (AppMode?) -> Unit) {
+    ListItem(
+        leadingContent = { AppIcon(app.pkg) },
+        headlineContent = { Text(app.label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        supportingContent = {
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                FilterChip(selected = mode == null, onClick = { onMode(null) }, label = { Text("Off") })
+                FilterChip(selected = mode == AppMode.PROMO, onClick = { onMode(AppMode.PROMO) }, label = { Text("Promos") })
+                FilterChip(selected = mode == AppMode.ALL, onClick = { onMode(AppMode.ALL) }, label = { Text("All") })
+            }
+        }
+    )
+}
+
+@Composable
+private fun AppIcon(pkg: String) {
+    val ctx = LocalContext.current
+    val icon by produceState<ImageBitmap?>(null, pkg) {
+        value = withContext(Dispatchers.IO) {
+            runCatching { ctx.packageManager.getApplicationIcon(pkg).toBitmap(96, 96).asImageBitmap() }.getOrNull()
+        }
+    }
+    Box(Modifier.size(40.dp)) { icon?.let { Image(it, contentDescription = null, Modifier.fillMaxSize()) } }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun DismissedList(items: List<DismissedNotification>, onChanged: () -> Unit) {
+    val ctx = LocalContext.current
+    val db = remember { Db.get(ctx) }
+    if (items.isEmpty()) { EmptyState("No notifications dismissed yet"); return }
+    LazyColumn {
+        item {
+            TextButton(onClick = { db.clearDismissed(); onChanged() }, modifier = Modifier.padding(horizontal = 4.dp)) { Text("Clear log") }
+        }
+        items(items, key = { it.id }) { d ->
+            Card(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
+                Column(Modifier.padding(12.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(d.app, fontWeight = FontWeight.SemiBold)
+                        Text(ago(d.date), style = MaterialTheme.typography.labelSmall)
+                    }
+                    Text(d.reason, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
+                    if (d.title.isNotBlank()) Text(d.title, fontWeight = FontWeight.Medium)
+                    if (d.text.isNotBlank()) Text(d.text)
+                    FlowRow {
+                        TextButton(onClick = {
+                            Learner.learn(ctx, "${d.title}\n${d.text}", isSpam = false)
+                            db.deleteDismissed(d.id); onChanged()
+                        }) { Text("Not an ad") }
+                        TextButton(onClick = {
+                            ctx.packageManager.getLaunchIntentForPackage(d.pkg)?.let { runCatching { ctx.startActivity(it) } }
+                        }) { Text("Open app") }
+                        TextButton(onClick = { db.deleteDismissed(d.id); onChanged() }) { Text("Delete") }
+                    }
+                }
             }
         }
     }

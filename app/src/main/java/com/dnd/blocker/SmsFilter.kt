@@ -67,6 +67,11 @@ object SmsFilter {
 
     fun hasOptOut(body: String): Boolean = optOutRegex.containsMatchIn(normalizeDigits(body))
 
+    fun adKeywordHits(text: String): Int {
+        val b = normalizeDigits(text).lowercase()
+        return adKeywords.count { b.contains(it) }
+    }
+
     fun isServiceLine(number: String): Boolean =
         serviceLinePrefixes.any { number.startsWith(it) }
 
@@ -86,8 +91,7 @@ object SmsFilter {
         if (isOtp(body)) return FilterResult(Verdict.INBOX, "otp")
         if (isBank(body)) return FilterResult(Verdict.INBOX, "bank")
 
-        val b = normalizeDigits(body).lowercase()
-        val adHits = adKeywords.count { b.contains(it) }
+        val adHits = adKeywordHits(body)
         if (adHits >= 2 || (adHits >= 1 && isServiceLine(number))) {
             return FilterResult(Verdict.SPAM, "ad keywords")
         }

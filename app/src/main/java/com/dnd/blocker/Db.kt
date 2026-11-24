@@ -10,11 +10,16 @@ data class Filtered(
     val date: Long, val verdict: String, val reason: String,
 )
 
+data class DismissedNotification(
+    val id: Long, val pkg: String, val app: String, val title: String,
+    val text: String, val date: Long, val reason: String,
+)
+
 data class BlockedCall(val id: Long, val number: String, val date: Long, val reason: String)
 
 /** Local database for filtered messages, blocked calls and the user's allow/deny lists. */
 class Db private constructor(ctx: Context) :
-    SQLiteOpenHelper(ctx.applicationContext, "dnd.db", null, 2) {
+    SQLiteOpenHelper(ctx.applicationContext, "dnd.db", null, 3) {
 
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("CREATE TABLE filtered(id INTEGER PRIMARY KEY AUTOINCREMENT, address TEXT, body TEXT, date INTEGER, verdict TEXT, reason TEXT)")
@@ -22,11 +27,54 @@ class Db private constructor(ctx: Context) :
         db.execSQL("CREATE TABLE whitelist(number TEXT PRIMARY KEY)")
         db.execSQL("CREATE TABLE blacklist(number TEXT PRIMARY KEY)")
         createModelTables(db)
+        createNotificationTables(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         if (oldVersion < 2) createModelTables(db)
+        if (oldVersion < 3) createNotificationTables(db)
     }
+
+    private fun createNotificationTables(db: SQLiteDatabase) {
+        db.execSQL("CREATE TABLE app_rules(pkg TEXT PRIMARY KEY, mode TEXT NOT NULL)")
+        db.execSQL("CREATE TABLE dismissed(id INTEGER PRIMARY KEY AUTOINCREMENT, pkg TEXT, app TEXT, title TEXT, text TEXT, date INTEGER, reason TEXT)")
+    }
+
+    fun appRules(): Map<String, AppMode> =
+        readableDatabase.rawQuery("SELECT pkg, mode FROM app_rules", null).use { c ->
+            buildMap { while (c.moveToNext()) runCatching { put(c.getString(0), AppMode.valueOf(c.getString(1))) } }
+        }
+
+    fun setAppRule(pkg: String, mode: AppMode?) {
+        if (mode == null) writableDatabase.delete("app_rules", "pkg=?", arrayOf(pkg))
+        else writableDatabase.insertWithOnConflict(
+            "app_rules", null,
+            ContentValues().apply { put("pkg", pkg); put("mode", mode.name) },
+            SQLiteDatabase.CONFLICT_REPLACE
+        )
+    }
+
+    fun addDismissed(pkg: String, app: String, title: String, text: String, reason: String) {
+        writableDatabase.insert("dismissed", null, ContentValues().apply {
+            put("pkg", pkg); put("app", app); put("title", title); put("text", text)
+            put("date", System.currentTimeMillis()); put("reason", reason)
+        })
+        // Keep the log small.
+        writableDatabase.execSQL("DELETE FROM dismissed WHERE id NOT IN (SELECT id FROM dismissed ORDER BY date DESC LIMIT 300)")
+    }
+
+    fun dismissed(): List<DismissedNotification> =
+        readableDatabase.rawQuery("SELECT id, pkg, app, title, text, date, reason FROM dismissed ORDER BY date DESC", null).use { c ->
+            buildList {
+                while (c.moveToNext()) add(
+                    DismissedNotification(c.getLong(0), c.getString(1), c.getString(2), c.getString(3), c.getString(4), c.getLong(5), c.getString(6))
+                )
+            }
+        }
+
+    fun deleteDismissed(id: Long) { writableDatabase.delete("dismissed", "id=?", arrayOf(id.toString())) }
+
+    fun clearDismissed() { writableDatabase.delete("dismissed", null, null) }
 
     private fun createModelTables(db: SQLiteDatabase) {
         db.execSQL("CREATE TABLE nb_tokens(token TEXT PRIMARY KEY, spam INTEGER NOT NULL DEFAULT 0, ham INTEGER NOT NULL DEFAULT 0)")

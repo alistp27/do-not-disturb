@@ -52,6 +52,15 @@ gradle testDebugUnitTest assembleDebug
 1. Allow contacts, SMS and notification permissions.
 2. In **Settings**, enable **Default SMS app** and **Call screening**.
 
+## Promotional notifications from apps
+
+In the **Apps** tab, pick a mode for each app (shopping, food delivery, banking apps that push offers…):
+
+- **Promos** — dismisses notifications that look like ads: the app marked them as a promotion, they contain an opt-out marker or ad keywords (`تخفیف`, `جشنواره`, `%`…), or the spam classifier scores them 90%+.
+- **All** — dismisses every notification from that app.
+
+In both modes, calls, alarms, navigation, ongoing/progress notifications, OTP codes and bank alerts are never touched. Dismissed notifications are listed under **Dismissed**; tap **Not an ad** to teach the classifier. This uses Android's notification access (a `NotificationListenerService`), which you grant once from the Apps tab.
+
 ## Messaging
 
 - **Conversations**: the Messages tab lists threads (with contact names and unread state); tap one for a chat view that updates live.
