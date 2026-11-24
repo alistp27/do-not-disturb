@@ -1,0 +1,7 @@
+<!-- Status bar icon: white silhouette shield with a bubble cut out. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#FFFFFF" android:fillType="evenOdd"
+        android:pathData="M12,2 L20,5 V11 C20,16.2 16.6,20.4 12,22 C7.4,20.4 4,16.2 4,11 V5 Z M8.5,8.5 H15.5 A1.5,1.5 0 0 1 17,10 V13.5 A1.5,1.5 0 0 1 15.5,15 H11.5 L9.5,16.8 V15 H8.5 A1.5,1.5 0 0 1 7,13.5 V10 A1.5,1.5 0 0 1 8.5,8.5 Z" />
+</vector>

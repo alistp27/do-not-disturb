@@ -1,69 +1,79 @@
 package com.dnd.blocker
 
 import android.Manifest
+import android.app.Activity
 import android.app.role.RoleManager
 import android.content.Context
 import android.content.Intent
-import android.database.ContentObserver
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
-import android.text.format.DateUtils
-import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
-import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.annotation.DrawableRes
+import androidx.annotation.StringRes
+import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.core.graphics.drawable.toBitmap
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 data class OpenThread(val id: Long, val addresses: List<String>)
+
+/** Settings the UI reacts to immediately. */
+class UiPrefs(ctx: Context) {
+    var theme by mutableStateOf(Prefs.theme(ctx))
+    var onboarded by mutableStateOf(Prefs.onboarded(ctx))
+}
+
+val LocalUiPrefs = staticCompositionLocalOf<UiPrefs> { error("UiPrefs not provided") }
 
 class MainActivity : ComponentActivity() {
     private var prefillTo by mutableStateOf<String?>(null)
     private var startTab by mutableIntStateOf(0)
 
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(Lang.wrap(newBase))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Notifier.ensureChannels(this)
         handleIntent(intent)
+        val prefs = UiPrefs(this)
         setContent {
-            MaterialTheme {
-                App(prefillTo, startTab, onPrefillConsumed = { prefillTo = null })
+            CompositionLocalProvider(LocalUiPrefs provides prefs) {
+                AppTheme(prefs.theme) {
+                    if (prefs.onboarded) {
+                        App(prefillTo, startTab, onPrefillConsumed = { prefillTo = null })
+                    } else {
+                        Onboarding(onDone = {
+                            Prefs.setOnboarded(this, true)
+                            prefs.onboarded = true
+                        })
+                    }
+                }
             }
         }
     }
@@ -85,7 +95,57 @@ class MainActivity : ComponentActivity() {
     companion object { const val EXTRA_TAB = "tab" }
 }
 
-private fun runtimePermissions(): Array<String> = buildList {
+// ---------------- Theme ----------------
+
+private val LightColors = lightColorScheme(
+    primary = Color(0xFF00696B), onPrimary = Color.White,
+    primaryContainer = Color(0xFF9CF1F2), onPrimaryContainer = Color(0xFF002021),
+    secondary = Color(0xFF4A6363), onSecondary = Color.White,
+    secondaryContainer = Color(0xFFCCE8E8), onSecondaryContainer = Color(0xFF051F20),
+    tertiary = Color(0xFF4B607C), onTertiary = Color.White,
+    background = Color(0xFFFAFDFC), onBackground = Color(0xFF191C1C),
+    surface = Color(0xFFFAFDFC), onSurface = Color(0xFF191C1C),
+    surfaceVariant = Color(0xFFDAE5E4), onSurfaceVariant = Color(0xFF3F4948),
+    surfaceContainerLowest = Color.White, surfaceContainerLow = Color(0xFFF4F8F7),
+    surfaceContainer = Color(0xFFEEF2F1), surfaceContainerHigh = Color(0xFFE8ECEB),
+    surfaceContainerHighest = Color(0xFFE2E6E5),
+    outline = Color(0xFF6F7979), outlineVariant = Color(0xFFBEC9C8),
+)
+
+private val DarkColors = darkColorScheme(
+    primary = Color(0xFF80D4D5), onPrimary = Color(0xFF003738),
+    primaryContainer = Color(0xFF004F51), onPrimaryContainer = Color(0xFF9CF1F2),
+    secondary = Color(0xFFB0CCCB), onSecondary = Color(0xFF1B3435),
+    secondaryContainer = Color(0xFF324B4B), onSecondaryContainer = Color(0xFFCCE8E8),
+    tertiary = Color(0xFFB3C8E8), onTertiary = Color(0xFF1C314B),
+    background = Color(0xFF191C1C), onBackground = Color(0xFFE0E3E2),
+    surface = Color(0xFF191C1C), onSurface = Color(0xFFE0E3E2),
+    surfaceVariant = Color(0xFF3F4948), onSurfaceVariant = Color(0xFFBEC9C8),
+    surfaceContainerLowest = Color(0xFF0F1414), surfaceContainerLow = Color(0xFF1E2424),
+    surfaceContainer = Color(0xFF252B2B), surfaceContainerHigh = Color(0xFF2F3636),
+    surfaceContainerHighest = Color(0xFF3A4141),
+    outline = Color(0xFF899392), outlineVariant = Color(0xFF3F4948),
+)
+
+@Composable
+fun AppTheme(mode: String, content: @Composable () -> Unit) {
+    val dark = when (mode) {
+        "dark" -> true
+        "light" -> false
+        else -> isSystemInDarkTheme()
+    }
+    val activity = LocalContext.current as? ComponentActivity
+    LaunchedEffect(dark) {
+        val transparent = android.graphics.Color.TRANSPARENT
+        val style = if (dark) SystemBarStyle.dark(transparent) else SystemBarStyle.light(transparent, transparent)
+        activity?.enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
+    }
+    MaterialTheme(colorScheme = if (dark) DarkColors else LightColors, content = content)
+}
+
+// ---------------- Shared helpers ----------------
+
+fun runtimePermissions(): Array<String> = buildList {
     add(Manifest.permission.READ_CONTACTS)
     add(Manifest.permission.READ_SMS)
     add(Manifest.permission.SEND_SMS)
@@ -94,33 +154,189 @@ private fun runtimePermissions(): Array<String> = buildList {
     if (Build.VERSION.SDK_INT >= 33) add(Manifest.permission.POST_NOTIFICATIONS)
 }.toTypedArray()
 
-private fun ago(t: Long): String = DateUtils.getRelativeTimeSpanString(t).toString()
-
-private fun splitAddresses(s: String): List<String> =
-    s.split(',', ';').map { it.trim() }.filter { it.isNotEmpty() }
-
-/** Bumps a counter whenever the system SMS/MMS database changes, so screens refresh live. */
+/** Increments each time the screen comes back to the foreground (e.g. from system settings). */
 @Composable
-private fun rememberProviderChanges(): Int {
-    val ctx = LocalContext.current
+fun rememberResumeTick(): Int {
+    val owner = LocalLifecycleOwner.current
     var tick by remember { mutableIntStateOf(0) }
-    DisposableEffect(Unit) {
-        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
-            override fun onChange(selfChange: Boolean) { tick++ }
-        }
-        runCatching { ctx.contentResolver.registerContentObserver(Uri.parse("content://mms-sms/"), true, observer) }
-        onDispose { ctx.contentResolver.unregisterContentObserver(observer) }
+    DisposableEffect(owner) {
+        val obs = LifecycleEventObserver { _, e -> if (e == Lifecycle.Event.ON_RESUME) tick++ }
+        owner.lifecycle.addObserver(obs)
+        onDispose { owner.lifecycle.removeObserver(obs) }
     }
     return tick
 }
 
-/** Caches contact names so lists don't hit the contacts DB on every recomposition. */
-private class NameCache(private val ctx: Context) {
-    private val cache = HashMap<String, String>()
-    fun of(address: String): String = cache.getOrPut(address) { Contacts.name(ctx, address) ?: address }
-    fun of(addresses: List<String>): String =
-        if (addresses.isEmpty()) "(unknown)" else addresses.joinToString(", ") { of(it) }
+@Composable
+fun ChoiceChips(options: List<Pair<String, String>>, selected: String, onSelect: (String) -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        options.forEach { (value, label) ->
+            FilterChip(selected = selected == value, onClick = { onSelect(value) }, label = { Text(label) })
+        }
+    }
 }
+
+@Composable
+fun LanguagePicker() {
+    val ctx = LocalContext.current
+    ChoiceChips(
+        listOf(
+            "system" to stringResource(R.string.lang_system),
+            "fa" to stringResource(R.string.lang_fa),
+            "en" to stringResource(R.string.lang_en),
+        ),
+        Prefs.language(ctx),
+    ) { code ->
+        if (code != Prefs.language(ctx)) {
+            Prefs.setLanguage(ctx, code)
+            (ctx as? Activity)?.recreate()
+        }
+    }
+}
+
+@Composable
+fun ThemePicker() {
+    val ctx = LocalContext.current
+    val prefs = LocalUiPrefs.current
+    ChoiceChips(
+        listOf(
+            "system" to stringResource(R.string.theme_system),
+            "light" to stringResource(R.string.theme_light),
+            "dark" to stringResource(R.string.theme_dark),
+        ),
+        prefs.theme,
+    ) { mode ->
+        Prefs.setTheme(ctx, mode)
+        prefs.theme = mode
+    }
+}
+
+// ---------------- Onboarding ----------------
+
+@Composable
+private fun Onboarding(onDone: () -> Unit) {
+    val ctx = LocalContext.current
+    var step by rememberSaveable { mutableIntStateOf(0) }
+    var refresh by remember { mutableIntStateOf(0) }
+    val resume = rememberResumeTick()
+    val lastStep = 4
+
+    val permLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { step = 1 }
+    val roleLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { refresh++ }
+
+    val smsHeld = remember(resume, refresh) { Roles.held(ctx, RoleManager.ROLE_SMS) }
+    val callHeld = remember(resume, refresh) { Roles.held(ctx, RoleManager.ROLE_CALL_SCREENING) }
+    val notifHeld = remember(resume, refresh) { AppRules.accessGranted(ctx) }
+
+    fun requestRole(role: String) {
+        Roles.requestIntent(ctx, role)?.let { roleLauncher.launch(it) } ?: refresh++
+    }
+
+    BackHandler(enabled = step > 0) { step-- }
+
+    Scaffold(
+        bottomBar = {
+            Row(
+                Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(Modifier.widthIn(min = 88.dp)) {
+                    if (step in 1 until lastStep) TextButton(onClick = { step++ }) { Text(stringResource(R.string.onb_skip)) }
+                }
+                Spacer(Modifier.weight(1f))
+                StepDots(step, lastStep + 1)
+                Spacer(Modifier.weight(1f))
+                Button(onClick = {
+                    when (step) {
+                        0 -> permLauncher.launch(runtimePermissions())
+                        lastStep -> onDone()
+                        else -> step++
+                    }
+                }) {
+                    Text(stringResource(if (step == lastStep) R.string.onb_start else R.string.onb_next))
+                }
+            }
+        }
+    ) { pad ->
+        Column(
+            Modifier.padding(pad).fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 28.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(18.dp)
+        ) {
+            Spacer(Modifier.height(48.dp))
+            when (step) {
+                0 -> {
+                    OnboardingHeader(R.drawable.ic_shield, R.string.onb_welcome_title, R.string.onb_welcome_body)
+                    Text(stringResource(R.string.language), style = MaterialTheme.typography.titleSmall)
+                    LanguagePicker()
+                }
+                1 -> {
+                    OnboardingHeader(R.drawable.ic_sms_filter, R.string.onb_sms_title, R.string.onb_sms_body)
+                    RoleAction(smsHeld, R.string.make_default) { requestRole(RoleManager.ROLE_SMS) }
+                }
+                2 -> {
+                    OnboardingHeader(R.drawable.ic_call_block, R.string.onb_call_title, R.string.onb_call_body)
+                    RoleAction(callHeld, R.string.enable) { requestRole(RoleManager.ROLE_CALL_SCREENING) }
+                }
+                3 -> {
+                    OnboardingHeader(R.drawable.ic_bell_off, R.string.onb_notif_title, R.string.onb_notif_body)
+                    RoleAction(notifHeld, R.string.allow_access) { AppRules.openAccessSettings(ctx) }
+                }
+                else -> OnboardingHeader(R.drawable.ic_check_circle, R.string.onb_done_title, R.string.onb_done_body)
+            }
+        }
+    }
+}
+
+@Composable
+private fun OnboardingHeader(@DrawableRes icon: Int, @StringRes title: Int, @StringRes body: Int) {
+    Box(
+        Modifier.size(128.dp).background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            painterResource(icon), contentDescription = null,
+            tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(64.dp)
+        )
+    }
+    Text(stringResource(title), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+    Text(
+        stringResource(body), style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+}
+
+@Composable
+private fun RoleAction(held: Boolean, @StringRes label: Int, onClick: () -> Unit) {
+    if (held) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Text(stringResource(R.string.enabled), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleMedium)
+        }
+    } else {
+        Button(onClick = onClick) { Text(stringResource(label)) }
+    }
+}
+
+@Composable
+private fun StepDots(current: Int, count: Int) {
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        repeat(count) { i ->
+            Box(
+                Modifier.size(if (i == current) 10.dp else 7.dp).background(
+                    if (i == current) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                    CircleShape
+                )
+            )
+        }
+    }
+}
+
+// ---------------- Main app shell ----------------
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -142,7 +358,10 @@ fun App(prefillTo: String?, startTab: Int, onPrefillConsumed: () -> Unit) {
         ActivityResultContracts.StartActivityForResult()
     ) { refresh++ }
 
-    LaunchedEffect(Unit) { permLauncher.launch(runtimePermissions()) }
+    LaunchedEffect(Unit) {
+        val missing = runtimePermissions().filter { !ctx.hasPermission(it) }
+        if (missing.isNotEmpty()) permLauncher.launch(missing.toTypedArray())
+    }
     LaunchedEffect(prefillTo) {
         val to = prefillTo ?: return@LaunchedEffect
         val addrs = splitAddresses(to)
@@ -160,28 +379,35 @@ fun App(prefillTo: String?, startTab: Int, onPrefillConsumed: () -> Unit) {
     if (current != null) {
         ConversationScreen(current, version, names, onBack = { openThread = null; refresh++ })
     } else {
-        val titles = listOf("Messages", "Filtered", "Calls", "Apps", "Settings")
+        val titles = listOf(
+            stringResource(R.string.tab_messages), stringResource(R.string.tab_filtered),
+            stringResource(R.string.tab_calls), stringResource(R.string.tab_apps),
+            stringResource(R.string.tab_settings),
+        )
         Scaffold(
             topBar = {
                 TopAppBar(
                     title = { Text(titles[tab]) },
-                    actions = { IconButton(onClick = { refresh++ }) { Icon(Icons.Default.Refresh, "Refresh") } }
+                    actions = {
+                        IconButton(onClick = { refresh++ }) {
+                            Icon(Icons.Default.Refresh, stringResource(R.string.refresh))
+                        }
+                    }
                 )
             },
             bottomBar = {
                 NavigationBar {
-                    val icons = listOf(Icons.Default.Email, Icons.Default.Warning, Icons.Default.Call, Icons.Default.Notifications, Icons.Default.Settings)
                     titles.forEachIndexed { i, t ->
                         NavigationBarItem(
                             selected = tab == i, onClick = { tab = i; refresh++ },
-                            icon = { Icon(icons[i], t) }, label = { Text(t) }
+                            icon = { TabIcon(i, t) }, label = { Text(t, maxLines = 1) }
                         )
                     }
                 }
             },
             floatingActionButton = {
                 if (tab == 0) FloatingActionButton(onClick = { showNew = true }) {
-                    Icon(Icons.Default.Add, "New conversation")
+                    Icon(Icons.Default.Add, stringResource(R.string.new_conversation))
                 }
             }
         ) { pad ->
@@ -191,7 +417,7 @@ fun App(prefillTo: String?, startTab: Int, onPrefillConsumed: () -> Unit) {
                     1 -> FilteredScreen(version) { refresh++ }
                     2 -> CallsScreen(version) { refresh++ }
                     3 -> AppsScreen(version)
-                    else -> SettingsScreen(version, requestRole) { refresh++ }
+                    else -> SettingsScreen(version, requestRole)
                 }
             }
         }
@@ -204,488 +430,12 @@ fun App(prefillTo: String?, startTab: Int, onPrefillConsumed: () -> Unit) {
 }
 
 @Composable
-private fun RoleBanner(text: String, button: String, onClick: () -> Unit) {
-    Card(Modifier.fillMaxWidth().padding(12.dp), colors = CardDefaults.cardColors(MaterialTheme.colorScheme.errorContainer)) {
-        Column(Modifier.padding(16.dp)) {
-            Text(text)
-            Spacer(Modifier.height(8.dp))
-            Button(onClick = onClick) { Text(button) }
-        }
-    }
-}
-
-@Composable
-private fun EmptyState(text: String) {
-    Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
-        Text(text, style = MaterialTheme.typography.bodyLarge)
-    }
-}
-
-// ---------------- Conversations ----------------
-
-@Composable
-private fun ThreadsScreen(version: Int, names: NameCache, requestRole: (String) -> Unit, onOpen: (OpenThread) -> Unit) {
-    val ctx = LocalContext.current
-    val isDefault = remember(version) { Roles.held(ctx, RoleManager.ROLE_SMS) }
-    val threads by produceState(emptyList<ThreadInfo>(), version) {
-        value = withContext(Dispatchers.IO) { Threads.list(ctx) }
-    }
-    Column {
-        if (!isDefault) RoleBanner(
-            "To filter spam SMS, this app must be your default SMS app.",
-            "Make default SMS app"
-        ) { requestRole(RoleManager.ROLE_SMS) }
-        if (threads.isEmpty()) EmptyState("No conversations")
-        LazyColumn {
-            items(threads, key = { it.id }) { t ->
-                val weight = if (t.unread) FontWeight.Bold else FontWeight.Normal
-                ListItem(
-                    modifier = Modifier.clickable { onOpen(OpenThread(t.id, t.addresses)) },
-                    headlineContent = {
-                        Text(names.of(t.addresses), fontWeight = weight, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    },
-                    supportingContent = {
-                        val snippet = t.snippet.ifBlank { if (t.hasAttachment) "📷 Picture" else "MMS" }
-                        Text(snippet, fontWeight = weight, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    },
-                    trailingContent = { Text(ago(t.date), style = MaterialTheme.typography.labelSmall) }
-                )
-                HorizontalDivider()
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun ConversationScreen(thread: OpenThread, version: Int, names: NameCache, onBack: () -> Unit) {
-    val ctx = LocalContext.current
-    val scope = rememberCoroutineScope()
-    var localRefresh by remember { mutableIntStateOf(0) }
-    var threadId by remember(thread) { mutableLongStateOf(thread.id) }
-    var text by rememberSaveable { mutableStateOf("") }
-    var image by remember { mutableStateOf<Uri?>(null) }
-    var sending by remember { mutableStateOf(false) }
-    val isGroup = thread.addresses.size > 1
-
-    BackHandler(onBack = onBack)
-
-    val messages by produceState(emptyList<ChatMessage>(), threadId, version, localRefresh) {
-        value = withContext(Dispatchers.IO) { Threads.messages(ctx, threadId) }
-    }
-    LaunchedEffect(threadId, messages.size) {
-        withContext(Dispatchers.IO) { Threads.markRead(ctx, threadId) }
-    }
-
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        if (uri != null) image = uri
-    }
-
-    fun send() {
-        val body = text.trim()
-        val img = image
-        if (body.isEmpty() && img == null) return
-        sending = true
-        scope.launch {
-            val result = withContext(Dispatchers.IO) {
-                runCatching {
-                    if (img != null || isGroup) MmsStore.send(ctx, thread.addresses, body, img)
-                    else SmsStore.send(ctx, thread.addresses.first(), body)
-                    if (threadId <= 0) threadId = Threads.threadIdFor(ctx, thread.addresses)
-                }
-            }
-            sending = false
-            result.onSuccess { text = ""; image = null }
-                .onFailure { Toast.makeText(ctx, "Not sent: ${it.message}", Toast.LENGTH_LONG).show() }
-            localRefresh++
-        }
-    }
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(names.of(thread.addresses), maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
-                }
-            )
-        },
-        bottomBar = {
-            Column(Modifier.imePadding()) {
-                if (image != null) Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("📷 Picture attached", Modifier.weight(1f), style = MaterialTheme.typography.labelLarge)
-                    TextButton(onClick = { image = null }) { Text("Remove") }
-                }
-                Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = {
-                        picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                    }) { Icon(Icons.Default.Add, "Attach picture") }
-                    OutlinedTextField(
-                        value = text, onValueChange = { text = it },
-                        modifier = Modifier.weight(1f),
-                        placeholder = { Text(if (image != null || isGroup) "MMS message" else "Text message") },
-                        maxLines = 5
-                    )
-                    IconButton(enabled = !sending && (text.isNotBlank() || image != null), onClick = { send() }) {
-                        if (sending) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                        else Icon(Icons.AutoMirrored.Filled.Send, "Send")
-                    }
-                }
-            }
-        }
-    ) { pad ->
-        if (messages.isEmpty()) {
-            Box(Modifier.padding(pad)) { EmptyState("No messages yet") }
-        } else {
-            LazyColumn(
-                Modifier.padding(pad).fillMaxSize(),
-                reverseLayout = true,
-                contentPadding = PaddingValues(12.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                items(messages.asReversed(), key = { it.key }) { m ->
-                    MessageBubble(m, if (isGroup && m.incoming) names.of(m.address) else null)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun MessageBubble(m: ChatMessage, senderName: String?) {
-    val bg = if (m.incoming) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.primaryContainer
-    Column(
-        Modifier.fillMaxWidth(),
-        horizontalAlignment = if (m.incoming) Alignment.Start else Alignment.End
-    ) {
-        Surface(color = bg, shape = RoundedCornerShape(16.dp), modifier = Modifier.widthIn(max = 300.dp)) {
-            Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                senderName?.let { Text(it, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold) }
-                m.images.forEach { MmsImage(it) }
-                if (m.text.isNotBlank()) Text(m.text)
-            }
-        }
-        Text(
-            listOfNotNull(ago(m.date), m.status).joinToString(" · "),
-            style = MaterialTheme.typography.labelSmall,
-            color = if (m.status == "Failed") MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline,
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-        )
-    }
-}
-
-@Composable
-private fun MmsImage(uri: Uri) {
-    val ctx = LocalContext.current
-    val bitmap by produceState<ImageBitmap?>(null, uri) {
-        value = withContext(Dispatchers.IO) {
-            runCatching { MmsStore.decodeScaled(ctx, uri, 720)?.asImageBitmap() }.getOrNull()
-        }
-    }
-    bitmap?.let {
-        Image(
-            it, contentDescription = "Picture",
-            modifier = Modifier.widthIn(max = 260.dp).heightIn(max = 340.dp).clip(RoundedCornerShape(10.dp)),
-            contentScale = ContentScale.Fit
-        )
-    }
-}
-
-@Composable
-private fun NewConversationDialog(onDismiss: () -> Unit, onStart: (List<String>) -> Unit) {
-    var to by remember { mutableStateOf("") }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("New conversation") },
-        text = {
-            OutlinedTextField(
-                to, { to = it },
-                label = { Text("Phone number(s), comma separated") },
-                singleLine = true
-            )
-        },
-        confirmButton = {
-            TextButton(enabled = splitAddresses(to).isNotEmpty(), onClick = { onStart(splitAddresses(to)) }) { Text("Start") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
-    )
-}
-
-// ---------------- Filtered / Calls / Settings ----------------
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun FilteredScreen(version: Int, onChanged: () -> Unit) {
-    val ctx = LocalContext.current
-    val db = remember { Db.get(ctx) }
-    val items = remember(version) { db.filtered() }
-    Column {
-        if (items.isNotEmpty()) Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("${items.size} filtered", style = MaterialTheme.typography.labelLarge)
-            TextButton(onClick = { db.clearFiltered(); onChanged() }) { Text("Delete all") }
-        }
-        if (items.isEmpty()) EmptyState("Nothing filtered yet")
-        LazyColumn {
-            items(items, key = { it.id }) { f ->
-                Card(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
-                    Column(Modifier.padding(12.dp)) {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(f.address, fontWeight = FontWeight.SemiBold)
-                            Text(ago(f.date), style = MaterialTheme.typography.labelSmall)
-                        }
-                        Text("${f.verdict.lowercase()} · ${f.reason}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
-                        Spacer(Modifier.height(4.dp))
-                        Text(f.body)
-                        FlowRow {
-                            TextButton(onClick = {
-                                SmsStore.insertInbox(ctx, f.address, f.body, f.date)
-                                db.whitelist(SmsFilter.normalizeNumber(f.address))
-                                Learner.learn(ctx, f.body, isSpam = false)
-                                db.deleteFiltered(f.id); onChanged()
-                            }) { Text("Not spam") }
-                            TextButton(onClick = {
-                                Learner.learn(ctx, f.body, isSpam = true)
-                                db.deleteFiltered(f.id); onChanged()
-                            }) { Text("Spam") }
-                            TextButton(onClick = {
-                                db.blacklist(SmsFilter.normalizeNumber(f.address))
-                                Learner.learn(ctx, f.body, isSpam = true)
-                                db.deleteFiltered(f.id); onChanged()
-                            }) { Text("Block sender") }
-                            TextButton(onClick = { db.deleteFiltered(f.id); onChanged() }) { Text("Delete") }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun CallsScreen(version: Int, onChanged: () -> Unit) {
-    val ctx = LocalContext.current
-    val db = remember { Db.get(ctx) }
-    val calls = remember(version) { db.blockedCalls() }
-    Column {
-        if (calls.isNotEmpty()) TextButton(onClick = { db.clearBlockedCalls(); onChanged() }, modifier = Modifier.padding(horizontal = 4.dp)) { Text("Clear log") }
-        if (calls.isEmpty()) EmptyState("No calls blocked yet")
-        LazyColumn {
-            items(calls, key = { it.id }) { c ->
-                ListItem(
-                    headlineContent = { Text(c.number) },
-                    supportingContent = { Text(c.reason) },
-                    trailingContent = { Text(ago(c.date), style = MaterialTheme.typography.labelSmall) }
-                )
-                HorizontalDivider()
-            }
-        }
-    }
-}
-
-// ---------------- Apps (promotional notifications) ----------------
-
-@Composable
-private fun AppsScreen(version: Int) {
-    val ctx = LocalContext.current
-    val owner = LocalLifecycleOwner.current
-    var resumeTick by remember { mutableIntStateOf(0) }
-    DisposableEffect(owner) {
-        val obs = LifecycleEventObserver { _, e -> if (e == Lifecycle.Event.ON_RESUME) resumeTick++ }
-        owner.lifecycle.addObserver(obs)
-        onDispose { owner.lifecycle.removeObserver(obs) }
-    }
-    val granted = remember(version, resumeTick) { AppRules.accessGranted(ctx) }
-    var showLog by rememberSaveable { mutableStateOf(false) }
-    var logVersion by remember { mutableIntStateOf(0) }
-    val dismissed = remember(version, resumeTick, logVersion) { Db.get(ctx).dismissed() }
-
-    Column {
-        if (!granted) RoleBanner(
-            "To dismiss promotional notifications, allow notification access for this app.",
-            "Allow notification access"
-        ) { AppRules.openAccessSettings(ctx) }
-        Row(Modifier.padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(selected = !showLog, onClick = { showLog = false }, label = { Text("Apps") })
-            FilterChip(selected = showLog, onClick = { showLog = true }, label = { Text("Dismissed (${dismissed.size})") })
-        }
-        if (showLog) DismissedList(dismissed) { logVersion++ } else AppList()
-    }
-}
-
-@Composable
-private fun AppList() {
-    val ctx = LocalContext.current
-    var rules by remember { mutableStateOf(AppRules.all(ctx)) }
-    var query by rememberSaveable { mutableStateOf("") }
-    val apps by produceState<List<AppEntry>?>(null) {
-        value = withContext(Dispatchers.IO) {
-            val selected = AppRules.all(ctx)
-            // Apps already selected go first; the order is fixed so rows don't jump when toggled.
-            AppRules.launchableApps(ctx).sortedBy { if (it.pkg in selected) 0 else 1 }
-        }
-    }
-    Column {
-        Text(
-            "Promos: hides ads and offers only. All: hides every notification except calls, alarms, OTP codes and bank alerts.",
-            style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-        )
-        OutlinedTextField(
-            query, { query = it },
-            placeholder = { Text("Search apps") }, singleLine = true,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)
-        )
-        val list = apps
-        if (list == null) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-        } else {
-            LazyColumn {
-                items(list.filter { query.isBlank() || it.label.contains(query, ignoreCase = true) }, key = { it.pkg }) { app ->
-                    AppRow(app, rules[app.pkg]) { mode ->
-                        AppRules.set(ctx, app.pkg, mode)
-                        rules = AppRules.all(ctx)
-                    }
-                    HorizontalDivider()
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun AppRow(app: AppEntry, mode: AppMode?, onMode: (AppMode?) -> Unit) {
-    ListItem(
-        leadingContent = { AppIcon(app.pkg) },
-        headlineContent = { Text(app.label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-        supportingContent = {
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                FilterChip(selected = mode == null, onClick = { onMode(null) }, label = { Text("Off") })
-                FilterChip(selected = mode == AppMode.PROMO, onClick = { onMode(AppMode.PROMO) }, label = { Text("Promos") })
-                FilterChip(selected = mode == AppMode.ALL, onClick = { onMode(AppMode.ALL) }, label = { Text("All") })
-            }
-        }
-    )
-}
-
-@Composable
-private fun AppIcon(pkg: String) {
-    val ctx = LocalContext.current
-    val icon by produceState<ImageBitmap?>(null, pkg) {
-        value = withContext(Dispatchers.IO) {
-            runCatching { ctx.packageManager.getApplicationIcon(pkg).toBitmap(96, 96).asImageBitmap() }.getOrNull()
-        }
-    }
-    Box(Modifier.size(40.dp)) { icon?.let { Image(it, contentDescription = null, Modifier.fillMaxSize()) } }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun DismissedList(items: List<DismissedNotification>, onChanged: () -> Unit) {
-    val ctx = LocalContext.current
-    val db = remember { Db.get(ctx) }
-    if (items.isEmpty()) { EmptyState("No notifications dismissed yet"); return }
-    LazyColumn {
-        item {
-            TextButton(onClick = { db.clearDismissed(); onChanged() }, modifier = Modifier.padding(horizontal = 4.dp)) { Text("Clear log") }
-        }
-        items(items, key = { it.id }) { d ->
-            Card(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
-                Column(Modifier.padding(12.dp)) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(d.app, fontWeight = FontWeight.SemiBold)
-                        Text(ago(d.date), style = MaterialTheme.typography.labelSmall)
-                    }
-                    Text(d.reason, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
-                    if (d.title.isNotBlank()) Text(d.title, fontWeight = FontWeight.Medium)
-                    if (d.text.isNotBlank()) Text(d.text)
-                    FlowRow {
-                        TextButton(onClick = {
-                            Learner.learn(ctx, "${d.title}\n${d.text}", isSpam = false)
-                            db.deleteDismissed(d.id); onChanged()
-                        }) { Text("Not an ad") }
-                        TextButton(onClick = {
-                            ctx.packageManager.getLaunchIntentForPackage(d.pkg)?.let { runCatching { ctx.startActivity(it) } }
-                        }) { Text("Open app") }
-                        TextButton(onClick = { db.deleteDismissed(d.id); onChanged() }) { Text("Delete") }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SettingsScreen(version: Int, requestRole: (String) -> Unit, onChanged: () -> Unit) {
-    val ctx = LocalContext.current
-    val smsRole = remember(version) { Roles.held(ctx, RoleManager.ROLE_SMS) }
-    val callRole = remember(version) { Roles.held(ctx, RoleManager.ROLE_CALL_SCREENING) }
-    var blockHidden by remember { mutableStateOf(Prefs.blockHidden(ctx)) }
-    var blockUnknown by remember { mutableStateOf(Prefs.blockAllUnknown(ctx)) }
-
-    Column(
-        Modifier.verticalScroll(rememberScrollState()).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Text("Permissions", style = MaterialTheme.typography.titleMedium)
-        RoleRow("Default SMS app", smsRole) { requestRole(RoleManager.ROLE_SMS) }
-        RoleRow("Call screening (blocks 0940/0941/0942)", callRole) { requestRole(RoleManager.ROLE_CALL_SCREENING) }
-
-        HorizontalDivider()
-        Text("Calls", style = MaterialTheme.typography.titleMedium)
-        SwitchRow("Block hidden numbers", blockHidden) { blockHidden = it; Prefs.setBlockHidden(ctx, it); onChanged() }
-        SwitchRow("Block all numbers not in contacts", blockUnknown) { blockUnknown = it; Prefs.setBlockAllUnknown(ctx, it); onChanged() }
-
-        HorizontalDivider()
-        Text("Spam learning", style = MaterialTheme.typography.titleMedium)
-        var learnVersion by remember { mutableIntStateOf(0) }
-        val model = remember(version, learnVersion) { Learner.model(ctx) }
-        var confirmReset by remember { mutableStateOf(false) }
-        Text(
-            "Learned from ${model.userSpam} spam and ${model.userHam} non-spam messages you marked. " +
-                if (model.canAutoInbox) "It can now also move clearly personal messages to Messages."
-                else "After ${SpamModel.MIN_USER_EXAMPLES} of each, it will also move clearly personal messages to Messages.",
-            style = MaterialTheme.typography.bodySmall
-        )
-        Text(
-            "Everything is learned and stored on this phone only.",
-            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline
-        )
-        OutlinedButton(onClick = { confirmReset = true }) { Text("Reset learning") }
-        if (confirmReset) AlertDialog(
-            onDismissRequest = { confirmReset = false },
-            title = { Text("Reset learning?") },
-            text = { Text("The classifier forgets everything you taught it. Your messages and block lists are kept.") },
-            confirmButton = {
-                TextButton(onClick = { Learner.reset(ctx); confirmReset = false; learnVersion++ }) { Text("Reset") }
-            },
-            dismissButton = { TextButton(onClick = { confirmReset = false }) { Text("Cancel") } }
-        )
-
-        HorizontalDivider()
-        Text(
-            "SMS and MMS from contacts, OTP codes and bank messages go to Messages. " +
-                "Ads (with \"لغو11\" etc.) and unknown senders go to Filtered, where nothing is lost.",
-            style = MaterialTheme.typography.bodySmall
-        )
-    }
-}
-
-@Composable
-private fun RoleRow(label: String, held: Boolean, onRequest: () -> Unit) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, Modifier.weight(1f))
-        if (held) Text("Enabled ✓", color = MaterialTheme.colorScheme.primary)
-        else Button(onClick = onRequest) { Text("Enable") }
-    }
-}
-
-@Composable
-private fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, Modifier.weight(1f))
-        Switch(checked = checked, onCheckedChange = onChange)
+private fun TabIcon(index: Int, label: String) {
+    when (index) {
+        0 -> Icon(Icons.Default.Email, label)
+        1 -> Icon(painterResource(R.drawable.ic_shield), label, Modifier.size(24.dp))
+        2 -> Icon(painterResource(R.drawable.ic_call_block), label, Modifier.size(24.dp))
+        3 -> Icon(painterResource(R.drawable.ic_bell_off), label, Modifier.size(24.dp))
+        else -> Icon(Icons.Default.Settings, label)
     }
 }

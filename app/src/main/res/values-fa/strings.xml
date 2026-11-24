@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">مزاحم نشو</string>
+
+    <!-- Tabs and common -->
+    <string name="tab_messages">پیام‌ها</string>
+    <string name="tab_filtered">فیلترشده</string>
+    <string name="tab_calls">تماس‌ها</string>
+    <string name="tab_apps">برنامه‌ها</string>
+    <string name="tab_settings">تنظیمات</string>
+    <string name="refresh">بازخوانی</string>
+    <string name="cancel">لغو</string>
+    <string name="delete">حذف</string>
+    <string name="remove">برداشتن</string>
+    <string name="enable">فعال کردن</string>
+    <string name="enabled">فعال است</string>
+    <string name="clear_log">پاک کردن فهرست</string>
+    <string name="unknown_contact">(ناشناس)</string>
+
+    <!-- Messages -->
+    <string name="new_conversation">گفتگوی جدید</string>
+    <string name="sms_role_banner">برای فیلتر پیامک‌های تبلیغاتی، این برنامه باید برنامه پیش‌فرض پیامک شما باشد.</string>
+    <string name="make_default">تنظیم به‌عنوان برنامه پیامک</string>
+    <string name="no_conversations">هنوز گفتگویی نیست</string>
+    <string name="picture">تصویر</string>
+    <string name="mms">پیام چندرسانه‌ای</string>
+    <string name="back">بازگشت</string>
+    <string name="picture_attached">تصویر پیوست شد</string>
+    <string name="attach_picture">پیوست تصویر</string>
+    <string name="hint_mms">پیام چندرسانه‌ای</string>
+    <string name="hint_sms">پیامک</string>
+    <string name="send">ارسال</string>
+    <string name="not_sent">ارسال نشد: %1$s</string>
+    <string name="no_messages">هنوز پیامی نیست</string>
+    <string name="status_sending">در حال ارسال…</string>
+    <string name="status_failed">ناموفق</string>
+    <string name="phone_numbers">شماره‌ها، با کاما جدا کنید</string>
+    <string name="start">شروع</string>
+
+    <!-- Filtered -->
+    <string name="filtered_count">%1$d پیام فیلترشده</string>
+    <string name="delete_all">حذف همه</string>
+    <string name="nothing_filtered">هنوز چیزی فیلتر نشده</string>
+    <string name="not_spam">تبلیغ نیست</string>
+    <string name="spam">تبلیغ است</string>
+    <string name="block_sender">مسدود کردن فرستنده</string>
+    <string name="verdict_spam">تبلیغ</string>
+    <string name="verdict_quarantine">قرنطینه</string>
+
+    <!-- Calls -->
+    <string name="no_calls">هنوز تماسی مسدود نشده</string>
+
+    <!-- Apps -->
+    <string name="apps_access_banner">برای پنهان کردن اعلان‌های تبلیغاتی، به این برنامه دسترسی اعلان بدهید.</string>
+    <string name="allow_access">اجازه دسترسی به اعلان‌ها</string>
+    <string name="dismissed_count">پنهان‌شده (%1$d)</string>
+    <string name="apps_help">«تبلیغات» فقط تبلیغ‌ها و پیشنهادها را پنهان می‌کند. «همه» همه اعلان‌ها را به‌جز تماس، زنگ هشدار، رمز یکبار مصرف و پیام‌های بانکی پنهان می‌کند.</string>
+    <string name="search_apps">جستجوی برنامه‌ها</string>
+    <string name="mode_off">خاموش</string>
+    <string name="mode_promos">تبلیغات</string>
+    <string name="mode_all">همه</string>
+    <string name="no_dismissed">هنوز اعلانی پنهان نشده</string>
+    <string name="not_an_ad">تبلیغ نیست</string>
+    <string name="open_app">باز کردن برنامه</string>
+
+    <!-- Settings -->
+    <string name="permissions">مجوزها</string>
+    <string name="default_sms">برنامه پیش‌فرض پیامک</string>
+    <string name="call_screening">غربالگری تماس (مسدود کردن ۰۹۴۰، ۰۹۴۱ و ۰۹۴۲)</string>
+    <string name="calls_section">تماس‌ها</string>
+    <string name="block_hidden">مسدود کردن شماره‌های مخفی</string>
+    <string name="block_unknown">مسدود کردن همه شماره‌های خارج از مخاطبین</string>
+    <string name="learning">یادگیری تبلیغ</string>
+    <string name="learned">از %1$d پیام تبلیغاتی و %2$d پیام عادی که علامت زده‌اید یاد گرفته است.</string>
+    <string name="learning_ready">اکنون می‌تواند پیام‌های کاملاً شخصی را هم به پیام‌ها بفرستد.</string>
+    <string name="learning_not_ready">پس از %1$d نمونه از هر کدام، پیام‌های کاملاً شخصی را هم به پیام‌ها می‌فرستد.</string>
+    <string name="learning_local">همه‌چیز فقط روی همین گوشی یاد گرفته و ذخیره می‌شود.</string>
+    <string name="reset_learning">بازنشانی یادگیری</string>
+    <string name="reset_title">یادگیری بازنشانی شود؟</string>
+    <string name="reset_body">هرچه به آن یاد داده‌اید فراموش می‌شود. پیام‌ها و فهرست‌های مسدود حفظ می‌شوند.</string>
+    <string name="reset">بازنشانی</string>
+    <string name="settings_footer">پیامک و پیام چندرسانه‌ای مخاطبین، رمزهای یکبار مصرف و پیام‌های بانکی به «پیام‌ها» می‌روند. تبلیغ‌ها و فرستنده‌های ناشناس به «فیلترشده» می‌روند و هیچ پیامی از بین نمی‌رود.</string>
+    <string name="appearance">ظاهر</string>
+    <string name="language">زبان</string>
+    <string name="lang_system">پیش‌فرض گوشی</string>
+    <string name="lang_fa">فارسی</string>
+    <string name="lang_en">English</string>
+    <string name="theme">پوسته</string>
+    <string name="theme_system">پیش‌فرض گوشی</string>
+    <string name="theme_light">روشن</string>
+    <string name="theme_dark">تیره</string>
+    <string name="run_setup">اجرای دوباره راه‌اندازی</string>
+
+    <!-- Filter reasons -->
+    <string name="reason_blacklist">فرستنده مسدودشده</string>
+    <string name="reason_opt_out">نشانه لغو تبلیغ</string>
+    <string name="reason_ad_keywords">کلمات تبلیغاتی</string>
+    <string name="reason_score">امتیاز تبلیغ %1$s٪</string>
+    <string name="reason_unknown_score">فرستنده ناشناس · امتیاز تبلیغ %1$s٪</string>
+    <string name="reason_unknown">فرستنده ناشناس</string>
+    <string name="reason_hidden">شماره مخفی</string>
+    <string name="reason_prefix">پیش‌شماره تبلیغاتی %1$s</string>
+    <string name="reason_unknown_number">خارج از مخاطبین</string>
+    <string name="reason_all_notifications">همه اعلان‌های این برنامه</string>
+    <string name="reason_promo_category">برنامه آن را تبلیغ علامت زده است</string>
+    <string name="reason_keyword_score">کلمه تبلیغاتی + امتیاز تبلیغ %1$s٪</string>
+
+    <!-- Notifications -->
+    <string name="channel_messages">پیام‌ها</string>
+    <string name="channel_filtered">پیام‌های فیلترشده</string>
+    <string name="notif_filtered_title">%1$d پیام فیلتر شد</string>
+    <string name="notif_filtered_text">برای بررسی بزنید</string>
+
+    <!-- Onboarding -->
+    <string name="onb_next">بعدی</string>
+    <string name="onb_skip">رد شدن</string>
+    <string name="onb_start">شروع</string>
+    <string name="onb_welcome_title">به «مزاحم نشو» خوش آمدید</string>
+    <string name="onb_welcome_body">تماس‌های تبلیغاتی را مسدود کنید، پیامک‌های تبلیغاتی را فیلتر کنید و تبلیغ برنامه‌ها را پنهان کنید، بدون اینکه رمز یکبار مصرف یا پیام بانکی را از دست بدهید. همه‌چیز روی گوشی خودتان انجام می‌شود.</string>
+    <string name="onb_sms_title">فیلتر پیامک‌های تبلیغاتی</string>
+    <string name="onb_sms_body">این برنامه را برنامه پیش‌فرض پیامک کنید. پیام مخاطبین، رمز یکبار مصرف و پیامک بانک همیشه به دستتان می‌رسد. تبلیغ‌ها و فرستنده‌های ناشناس به «فیلترشده» می‌روند تا بعداً بررسی کنید.</string>
+    <string name="onb_call_title">مسدود کردن تماس‌های تبلیغاتی</string>
+    <string name="onb_call_body">با فعال کردن غربالگری تماس، تماس‌های ۰۹۴۰، ۰۹۴۱ و ۰۹۴۲ پیش از زنگ خوردن رد می‌شوند. مخاطبین شما هرگز مسدود نمی‌شوند.</string>
+    <string name="onb_notif_title">پنهان کردن تبلیغ برنامه‌ها</string>
+    <string name="onb_notif_body">اختیاری. دسترسی به اعلان‌ها را بدهید، سپس در بخش «برنامه‌ها» انتخاب کنید تبلیغ کدام برنامه‌ها پنهان شود.</string>
+    <string name="onb_done_title">همه‌چیز آماده است</string>
+    <string name="onb_done_body">هر وقت خواستید می‌توانید این‌ها را در تنظیمات تغییر دهید.</string>
+</resources>

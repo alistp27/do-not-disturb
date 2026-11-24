@@ -9,7 +9,9 @@ import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.net.Uri
+import java.util.Locale
 import android.os.Build
 import android.provider.ContactsContract
 import android.provider.Telephony
@@ -51,6 +53,30 @@ object Prefs {
     fun setBlockHidden(ctx: Context, v: Boolean) = p(ctx).edit().putBoolean("block_hidden", v).apply()
     fun blockAllUnknown(ctx: Context) = p(ctx).getBoolean("block_unknown", false)
     fun setBlockAllUnknown(ctx: Context, v: Boolean) = p(ctx).edit().putBoolean("block_unknown", v).apply()
+
+    /** "system", "fa" or "en". */
+    fun language(ctx: Context): String = p(ctx).getString("language", "system") ?: "system"
+    fun setLanguage(ctx: Context, v: String) = p(ctx).edit().putString("language", v).commit()
+
+    /** "system", "light" or "dark". */
+    fun theme(ctx: Context): String = p(ctx).getString("theme", "system") ?: "system"
+    fun setTheme(ctx: Context, v: String) = p(ctx).edit().putString("theme", v).apply()
+
+    fun onboarded(ctx: Context) = p(ctx).getBoolean("onboarded", false)
+    fun setOnboarded(ctx: Context, v: Boolean) = p(ctx).edit().putBoolean("onboarded", v).apply()
+}
+
+/** Applies the in-app language choice (and its text direction) to a context. */
+object Lang {
+    fun wrap(base: Context): Context {
+        val code = Prefs.language(base)
+        if (code == "system") return base
+        val locale = Locale.forLanguageTag(code)
+        val config = Configuration(base.resources.configuration)
+        config.setLocale(locale)
+        config.setLayoutDirection(locale)
+        return base.createConfigurationContext(config)
+    }
 }
 
 object Roles {
@@ -93,8 +119,9 @@ object Notifier {
 
     fun ensureChannels(ctx: Context) {
         val nm = ctx.getSystemService(NotificationManager::class.java)
-        nm.createNotificationChannel(NotificationChannel(CH_MSG, "Messages", NotificationManager.IMPORTANCE_HIGH))
-        nm.createNotificationChannel(NotificationChannel(CH_FILTER, "Filtered messages", NotificationManager.IMPORTANCE_MIN))
+        val l = Lang.wrap(ctx)
+        nm.createNotificationChannel(NotificationChannel(CH_MSG, l.getString(R.string.channel_messages), NotificationManager.IMPORTANCE_HIGH))
+        nm.createNotificationChannel(NotificationChannel(CH_FILTER, l.getString(R.string.channel_filtered), NotificationManager.IMPORTANCE_MIN))
     }
 
     private fun openApp(ctx: Context, tab: Int): PendingIntent =
@@ -114,7 +141,7 @@ object Notifier {
         if (!canNotify(ctx)) return
         ensureChannels(ctx)
         val n = NotificationCompat.Builder(ctx, CH_MSG)
-            .setSmallIcon(android.R.drawable.sym_action_chat)
+            .setSmallIcon(R.drawable.ic_stat_notify)
             .setContentTitle(from).setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setContentIntent(openApp(ctx, 0)).setAutoCancel(true)
@@ -127,9 +154,9 @@ object Notifier {
         if (!canNotify(ctx)) return
         ensureChannels(ctx)
         val n = NotificationCompat.Builder(ctx, CH_FILTER)
-            .setSmallIcon(android.R.drawable.ic_lock_silent_mode)
-            .setContentTitle("$count messages filtered")
-            .setContentText("Tap to review — OTP or bank messages may be here")
+            .setSmallIcon(R.drawable.ic_stat_notify)
+            .setContentTitle(Lang.wrap(ctx).getString(R.string.notif_filtered_title, count))
+            .setContentText(Lang.wrap(ctx).getString(R.string.notif_filtered_text))
             .setContentIntent(openApp(ctx, 1)).setSilent(true).setAutoCancel(true)
             .build()
         NotificationManagerCompat.from(ctx).notify(FILTER_ID, n)
